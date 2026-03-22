@@ -170,20 +170,35 @@ F0 7E 00 06 02 00 20 29 48 01 00 01 01 01 0B 39 F7
 - Device family: 0x48
 - SysEx device ID 0x15 still works for DAW mode ON/OFF but NOT for LED/screen
 
-### OLED Screen (SysEx — works via WinMM only)
-Two-step process (confirmed working in waveloop C code, NOT via Web MIDI):
+### OLED Screen (SysEx — confirmed working via Web MIDI)
+
+**3-row display using arrangement 2, separate SysEx per field:**
 
 **Step 1 — Configure display:**
 ```
-F0 00 20 29 02 15 04 <target> <arrangement> F7
+F0 00 20 29 02 15 04 35 02 F7
 ```
-- `target`: 0x35 for the LCXL3 main screen
-- `arrangement`: 1 = two-line layout
+- Target: 0x35, Arrangement: 0x02
 
-**Step 2 — Set text:**
+**Step 2 — Set text per row (separate SysEx messages):**
 ```
-F0 00 20 29 02 15 06 <target> 00 <line1 ASCII bytes> 00 01 <line2 ASCII bytes> F7
+F0 00 20 29 02 15 06 35 00 <top row ASCII> F7    (field 0x00 = top)
+F0 00 20 29 02 15 06 35 01 <mid row ASCII> F7    (field 0x01 = middle)
+F0 00 20 29 02 15 06 35 02 <bot row ASCII> F7    (field 0x02 = bottom)
 ```
+
+**Step 3 — Trigger display (re-send top text without field byte):**
+```
+F0 00 20 29 02 15 06 35 <top row ASCII> F7
+```
+
+**Arrangement reference:**
+- Arr 1: field 0=middle(centred), field 1=bottom
+- Arr 2: field 0=top, field 1=middle, field 2=bottom (ALL 3 ROWS)
+- Arr 3: field 0=top(centred), field 1=middle(left-aligned)
+- Arr 4: concatenates fields on top, stray "0" on bottom
+
+**Note:** Text only appears after pressing Mode button on LCXL3 (DAW overlay hides custom text). Waveloop keeps text visible by re-sending continuously.
 
 ### Known LCXL3 Port Names (Windows)
 - **LCXL3 1 MIDI** — standalone port (LED CC works here)

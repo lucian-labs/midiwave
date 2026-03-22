@@ -580,22 +580,19 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
     <!-- Screen -->
     <div id="tab-screen" class="tab-body">
       <div class="row">
-        <label>Target</label>
-        <input type="text" id="screen-target" value="0x35" style="width:50px;flex:none;">
-      </div>
-      <div class="row">
-        <label>Arrange</label>
-        <input type="number" id="screen-arrange" value="1" min="0" max="10" style="width:50px;flex:none;">
-      </div>
-      <div class="section-divider"></div>
-      <div class="row">
-        <label>Line 1</label>
+        <label>Top</label>
         <input type="text" id="screen-line1" placeholder="midiwave" maxlength="20">
       </div>
       <div class="row">
-        <label>Line 2</label>
+        <label>Middle</label>
         <input type="text" id="screen-line2" placeholder="Ready" maxlength="20">
       </div>
+      <div class="row">
+        <label>Bottom</label>
+        <input type="text" id="screen-line3" placeholder="" maxlength="20">
+      </div>
+      <input type="hidden" id="screen-target" value="0x35">
+      <input type="hidden" id="screen-arrange" value="2">
       <div class="row">
         <button class="primary" onclick="sendScreen()">Send</button>
         <button id="btn-screen-loop" onclick="toggleScreenLoop()">Loop</button>
@@ -1162,10 +1159,10 @@ function mapIncomingCC(ch, cc, val) {
       }
 
       // Show knob value on LCXL3 screen (if screen loop isn't running)
-      if (!screenInterval && key.startsWith('enc:') || key.startsWith('fader:')) {
+      if (!screenInterval && (key.startsWith('enc:') || key.startsWith('fader:'))) {
         const name = ctrl.name || `CC ${ctrl.cc}`;
         const pct = Math.round(val / 127 * 100);
-        sendScreenDirect(name, `${pct}%`);
+        sendScreenDirect('midiwave', name, `${pct}%`);
       }
 
       matched = true;
@@ -1290,42 +1287,15 @@ function buildScreenMsgWaveloop(line1, line2, target, arrange) {
 }
 
 function sendScreen() {
-  const target = parseInt(document.getElementById('screen-target').value);
-  const arrange = parseInt(document.getElementById('screen-arrange').value);
-  const line1 = document.getElementById('screen-line1').value || 'midiwave';
-  const line2 = document.getElementById('screen-line2').value || '';
-  const H = [0xF0, 0x00, 0x20, 0x29, 0x02, 0x15];
-  const l1 = [...line1].map(c => c.charCodeAt(0) & 0x7F);
-  const l2 = [...line2].map(c => c.charCodeAt(0) & 0x7F);
+  const top = document.getElementById('screen-line1').value || '';
+  const mid = document.getElementById('screen-line2').value || '';
+  const bot = document.getElementById('screen-line3').value || '';
 
-  // Config
-  const configMsg = [...H, 0x04, target, arrange, 0xF7];
-  // Waveloop format (sets buffer)
-  const wlMsg = [...H, 0x06, target, 0x00, ...l1, 0x00, 0x01, ...l2, 0xF7];
-  // Newline format (triggers display)
-  const nlMsg = [...H, 0x06, target, ...l1, 0x0A, ...l2, 0xF7];
-
-  // Two-step send to all ports: config → waveloop → newline
   const ports = getAllLCXLPorts();
   for (const p of ports) {
-    p.port.send(new Uint8Array(configMsg));
+    sendScreen3Row(p.port, top, mid, bot);
+    console.log(`[midiwave] SCREEN → ${p.name}: "${top}" / "${mid}" / "${bot}"`);
   }
-  setTimeout(() => {
-    for (const p of ports) {
-      p.port.send(new Uint8Array(wlMsg));
-      console.log(`[midiwave] SCREEN → ${p.name}: waveloop "${line1}" / "${line2}"`);
-    }
-  }, 100);
-  setTimeout(() => {
-    for (const p of ports) {
-      p.port.send(new Uint8Array(nlMsg));
-      console.log(`[midiwave] SCREEN → ${p.name}: newline "${line1}" / "${line2}"`);
-    }
-  }, 200);
-
-  document.getElementById('screen-hex').textContent =
-    'WL: ' + wlMsg.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ') + '\n' +
-    'NL: ' + nlMsg.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
 }
 
 function toggleScreenLoop() {
@@ -1345,11 +1315,10 @@ function toggleScreenLoop() {
 
 function sendScreenFast() {
   if (!activeOutput) return;
-  const target = parseInt(document.getElementById('screen-target').value);
-  const arrange = parseInt(document.getElementById('screen-arrange').value);
-  const line1 = document.getElementById('screen-line1').value || 'midiwave';
-  const line2 = document.getElementById('screen-line2').value || '';
-  sendScreenTwoStep(activeOutput, target, arrange, line1, line2);
+  const top = document.getElementById('screen-line1').value || '';
+  const mid = document.getElementById('screen-line2').value || '';
+  const bot = document.getElementById('screen-line3').value || '';
+  sendScreen3Row(activeOutput, top, mid, bot);
 }
 
 function sendScreenFormat(fmt) {
@@ -1417,22 +1386,128 @@ function sendScreenRefresh() {
 }
 
 function sendScreenCombo() {
-  // Just automate clicking Waveloop then Newline with different arrangements
+  // 3-row OLED: top, middle, bottom (value?)
+  // Try different approaches to write to all 3 rows
+  const H = [0xF0, 0x00, 0x20, 0x29, 0x02, 0x15];
+  const target = parseInt(document.getElementById('screen-target').value);
+  const t = (s) => [...s].map(c => c.charCodeAt(0) & 0x7F);
+
+  let testNum = 0;
+  const tests = [];
+
+  // Clean ASCII only. Isolate arr=1 tests (where bottom row showed text)
+  // Each test sends ONE approach, waits, so you can see exactly what each does
+
+  // CONFIRMED:
+  // Arr 2: field 0x00 = top, field 0x01 = middle
+  // Arr 3: field 0x00 = top (centred), field 0x01 = middle (left)
+  // Arr 1: field 0x00 = middle, field 0x01 = bottom
+  // Now: can we get all 3 rows?
+
+  // Test 1: Arr 2 for top+mid, then arr 1 for bottom (switch config mid-stream)
+  testNum++;
+  tests.push({ label: `${testNum} a2 a1`, msgs: [
+    [...H, 0x04, target, 0x02, 0xF7],
+    [...H, 0x06, target, 0x00, ...t('ALPHA'), 0xF7],
+    [...H, 0x06, target, 0x01, ...t('BRAVO'), 0xF7],
+    [...H, 0x04, target, 0x01, 0xF7],
+    [...H, 0x06, target, 0x01, ...t('CHARLI'), 0xF7],
+    [...H, 0x06, target, ...t('ALPHA'), 0xF7],
+  ]});
+
+  // Test 2: Arr 3 for top+mid, then arr 1 for bottom
+  testNum++;
+  tests.push({ label: `${testNum} a3 a1`, msgs: [
+    [...H, 0x04, target, 0x03, 0xF7],
+    [...H, 0x06, target, 0x00, ...t('DELTA'), 0xF7],
+    [...H, 0x06, target, 0x01, ...t('ECHO'), 0xF7],
+    [...H, 0x04, target, 0x01, 0xF7],
+    [...H, 0x06, target, 0x01, ...t('FOXTRT'), 0xF7],
+    [...H, 0x06, target, ...t('DELTA'), 0xF7],
+  ]});
+
+  // Test 3: Arr 4 with all 3 fields
+  testNum++;
+  tests.push({ label: `${testNum} a4 f012`, msgs: [
+    [...H, 0x04, target, 0x04, 0xF7],
+    [...H, 0x06, target, 0x00, ...t('GOLF'), 0xF7],
+    [...H, 0x06, target, 0x01, ...t('HOTEL'), 0xF7],
+    [...H, 0x06, target, 0x02, ...t('INDIA'), 0xF7],
+    [...H, 0x06, target, ...t('GOLF'), 0xF7],
+  ]});
+
+  // Test 4: Arr 2 with field 0x02 for bottom
+  testNum++;
+  tests.push({ label: `${testNum} a2 f02`, msgs: [
+    [...H, 0x04, target, 0x02, 0xF7],
+    [...H, 0x06, target, 0x00, ...t('JULIET'), 0xF7],
+    [...H, 0x06, target, 0x01, ...t('KILO'), 0xF7],
+    [...H, 0x06, target, 0x02, ...t('LIMA'), 0xF7],
+    [...H, 0x06, target, ...t('JULIET'), 0xF7],
+  ]});
+
+  // Test 5: Arr 3 with field 0x02 for bottom
+  testNum++;
+  tests.push({ label: `${testNum} a3 f02`, msgs: [
+    [...H, 0x04, target, 0x03, 0xF7],
+    [...H, 0x06, target, 0x00, ...t('MIKE'), 0xF7],
+    [...H, 0x06, target, 0x01, ...t('NOVMBR'), 0xF7],
+    [...H, 0x06, target, 0x02, ...t('OSCAR'), 0xF7],
+    [...H, 0x06, target, ...t('MIKE'), 0xF7],
+  ]});
+
+  // Test 6: Arr 5 — maybe 5 is the 3-row arrangement?
+  testNum++;
+  tests.push({ label: `${testNum} a5 f012`, msgs: [
+    [...H, 0x04, target, 0x05, 0xF7],
+    [...H, 0x06, target, 0x00, ...t('PAPA'), 0xF7],
+    [...H, 0x06, target, 0x01, ...t('QUEBEC'), 0xF7],
+    [...H, 0x06, target, 0x02, ...t('ROMEO'), 0xF7],
+    [...H, 0x06, target, ...t('PAPA'), 0xF7],
+  ]});
+
+  // Test 7: Arr 6
+  testNum++;
+  tests.push({ label: `${testNum} a6 f012`, msgs: [
+    [...H, 0x04, target, 0x06, 0xF7],
+    [...H, 0x06, target, 0x00, ...t('SIERRA'), 0xF7],
+    [...H, 0x06, target, 0x01, ...t('TANGO'), 0xF7],
+    [...H, 0x06, target, 0x02, ...t('UNIFRM'), 0xF7],
+    [...H, 0x06, target, ...t('SIERRA'), 0xF7],
+  ]});
+
+  // Test 8: Arr 7
+  testNum++;
+  tests.push({ label: `${testNum} a7 f012`, msgs: [
+    [...H, 0x04, target, 0x07, 0xF7],
+    [...H, 0x06, target, 0x00, ...t('VICTOR'), 0xF7],
+    [...H, 0x06, target, 0x01, ...t('WHSKY'), 0xF7],
+    [...H, 0x06, target, 0x02, ...t('XRAY'), 0xF7],
+    [...H, 0x06, target, ...t('VICTOR'), 0xF7],
+  ]});
+
+  console.log(`[midiwave] COMBO: ${tests.length} three-row tests`);
+
   let delay = 0;
-  for (let arr = 0; arr <= 7; arr++) {
+  for (const test of tests) {
     setTimeout(() => {
-      document.getElementById('screen-line1').value = `T${arr+1}:arr${arr}`;
-      document.getElementById('screen-line2').value = 'BOTTOM';
-      document.getElementById('screen-arrange').value = arr;
-      console.log(`[midiwave] COMBO ${arr+1}: arr=${arr} — calling sendScreenFormat waveloop+newline`);
-      sendScreenFormat('waveloop');
-      setTimeout(() => sendScreenFormat('newline'), 100);
+      console.log(`[midiwave] ═══ COMBO ${test.label} ═══`);
+      let d = 0;
+      for (let mi = 0; mi < test.msgs.length; mi++) {
+        const msg = test.msgs[mi];
+        setTimeout(() => {
+          const hex = msg.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
+          const ascii = msg.map(b => b >= 0x20 && b <= 0x7E ? String.fromCharCode(b) : '.').join('');
+          console.log(`[midiwave]   msg${mi+1}: ${hex}  "${ascii}"`);
+          for (const p of getAllLCXLPorts()) p.port.send(new Uint8Array(msg));
+        }, d);
+        d += 80;
+      }
     }, delay);
-    delay += 800;
+    delay += 1500;
   }
 
-  document.getElementById('info-learn-status').textContent = `Combo: 8 tests, arr 0-7`;
-  console.log(`[midiwave] Combo: 8 tests, ~${Math.round(delay/1000)}s`);
+  document.getElementById('info-learn-status').textContent = `3-row tests: ${tests.length}, 0.5s each. Watch for MID/BOT!`;
 }
 
 function sendScreenTwoStep() {
@@ -1463,20 +1538,26 @@ function sendScreenTwoStep() {
   }, 400);
 }
 
-function sendScreenDirect(line1, line2) {
+function sendScreenDirect(top, mid, bot) {
   if (!activeOutput) return;
-  const target = parseInt(document.getElementById('screen-target').value);
-  const arrange = parseInt(document.getElementById('screen-arrange').value);
-  sendScreenTwoStep(activeOutput, target, arrange, line1, line2);
+  sendScreen3Row(activeOutput, top, mid || '', bot || '');
 }
 
-function sendScreenTwoStep(port, target, arrange, line1, line2) {
+function sendScreen3Row(port, top, mid, bot) {
   const H = [0xF0, 0x00, 0x20, 0x29, 0x02, 0x15];
-  const l1 = [...line1].map(c => c.charCodeAt(0) & 0x7F);
-  const l2 = [...line2].map(c => c.charCodeAt(0) & 0x7F);
-  port.send(new Uint8Array([...H, 0x04, target, arrange, 0xF7]));
-  port.send(new Uint8Array([...H, 0x06, target, 0x00, ...l1, 0x00, 0x01, ...l2, 0xF7]));
-  port.send(new Uint8Array([...H, 0x06, target, ...l1, 0x0A, ...l2, 0xF7]));
+  const target = 0x35;
+  const t = (s) => [...s].map(c => c.charCodeAt(0) & 0x7F);
+
+  // Config: arrangement 2, target 0x35
+  port.send(new Uint8Array([...H, 0x04, target, 0x02, 0xF7]));
+  // Field 0x00 = top row
+  if (top) port.send(new Uint8Array([...H, 0x06, target, 0x00, ...t(top), 0xF7]));
+  // Field 0x01 = middle row
+  if (mid) port.send(new Uint8Array([...H, 0x06, target, 0x01, ...t(mid), 0xF7]));
+  // Field 0x02 = bottom row
+  if (bot) port.send(new Uint8Array([...H, 0x06, target, 0x02, ...t(bot), 0xF7]));
+  // Trigger display
+  port.send(new Uint8Array([...H, 0x06, target, ...t(top || mid || ''), 0xF7]));
 }
 
 function getAllLCXLPorts() {
@@ -1986,23 +2067,40 @@ function sparkle() {
   const duration = 10000;
   let frame = 0;
 
+  // Scrolling text for the OLED
+  const words = ['we','finally','figured','this','shit','out','yay','ai','lets','fuckin','go','to bed'];
+  let screenRows = ['', '', ''];
+  let wordIndex = 0;
+
   console.log('[midiwave] SPARKLE MODE — 10 seconds of magic');
   document.getElementById('info-learn-status').textContent = 'SPARKLE MODE';
+
+  // Text scroll timer — new word every ~900ms
+  const textInterval = setInterval(() => {
+    if (wordIndex < words.length) {
+      // Scroll up: top gets mid, mid gets bot, bot gets new word
+      screenRows[0] = screenRows[1];
+      screenRows[1] = screenRows[2];
+      screenRows[2] = words[wordIndex];
+      sendScreen3Row(port, screenRows[0], screenRows[1], screenRows[2]);
+      wordIndex++;
+    }
+  }, 900);
 
   sparkleTimer = setInterval(() => {
     const elapsed = Date.now() - startTime;
     if (elapsed > duration) {
       clearInterval(sparkleTimer);
+      clearInterval(textInterval);
       sparkleTimer = null;
-      // Clear all
       for (const cc of allCCs) port.send([0xB0, cc, 0]);
       document.getElementById('info-learn-status').textContent = '';
       console.log('[midiwave] Sparkle done');
       return;
     }
 
-    const phase = elapsed / duration; // 0-1
-    const mode = Math.floor(phase * 5); // 5 different effects
+    const phase = elapsed / duration;
+    const mode = Math.floor(phase * 5);
 
     switch (mode) {
       case 0: // Rainbow chase
@@ -2032,7 +2130,7 @@ function sparkle() {
             [45,46,47,48,49,50,51,52],
           ];
           const activeRow = frame % rows.length;
-          const colors = [5, 21, 41, 64, 88]; // red, green, blue, purple, lime
+          const colors = [5, 21, 41, 64, 88];
           for (let r = 0; r < rows.length; r++) {
             const val = r === activeRow ? colors[r] : 0;
             for (const cc of rows[r]) port.send([0xB0, cc, val]);
@@ -2061,7 +2159,7 @@ function sparkle() {
     }
 
     frame++;
-  }, 80); // ~12fps
+  }, 80);
 }
 
 function probeScreenCC() {
