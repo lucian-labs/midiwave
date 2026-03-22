@@ -358,6 +358,7 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
   <span id="conn-status" class="status disconnected">No MIDI</span>
   <div class="spacer"></div>
   <button id="btn-learn-all" onclick="toggleLearnAll()">Learn All</button>
+  <button onclick="panicAllNotesOff()" class="danger" title="All Notes Off on all channels, all ports">PANIC</button>
   <button onclick="sparkle()" style="background:linear-gradient(135deg,#f0f,#0ff,#ff0);border:none;color:#000;font-weight:bold;">Sparkle</button>
   <button onclick="exportConfig()" class="primary">Export</button>
 </header>
@@ -2044,6 +2045,28 @@ function probeEncoderLEDs() {
 
   console.log(`[midiwave] Encoder LED probe: ~${Math.round(delay/1000)}s. Watch encoder rings for any color!`);
   document.getElementById('info-learn-status').textContent = `Probing encoder LEDs — watch rings for color changes`;
+}
+
+// ─── Panic: All Notes Off ───
+function panicAllNotesOff() {
+  if (!midiAccess) { alert('No MIDI access'); return; }
+  const ports = Array.from(midiAccess.outputs.values());
+  let count = 0;
+  for (const port of ports) {
+    for (let ch = 0; ch < 16; ch++) {
+      // CC 123 = All Notes Off
+      port.send([0xB0 | ch, 123, 0]);
+      // CC 120 = All Sound Off
+      port.send([0xB0 | ch, 120, 0]);
+      // Individual note offs for stubborn devices
+      for (let note = 0; note < 128; note++) {
+        port.send([0x80 | ch, note, 0]);
+      }
+    }
+    count++;
+    console.log(`[midiwave] PANIC: All Notes Off → ${port.name}`);
+  }
+  console.log(`[midiwave] PANIC complete — ${count} ports, 16 channels, 128 notes each`);
 }
 
 // ─── Sparkle Mode ───
