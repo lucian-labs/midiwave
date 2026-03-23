@@ -955,7 +955,20 @@ function selectControl(key) {
 
 function updateSelectedName() {
   if (!selectedKey) return;
-  controlMap[selectedKey].name = document.getElementById('ctrl-name').value;
+  const name = document.getElementById('ctrl-name').value;
+  controlMap[selectedKey].name = name;
+  // Immediately update the visual label
+  const el = document.querySelector(`[data-key="${selectedKey}"]`);
+  if (el) {
+    const label = el.querySelector('span:first-child');
+    if (label && !el.classList.contains('fader-track')) {
+      label.textContent = name || `CC ${controlMap[selectedKey].cc}`;
+    }
+    // Fader label
+    const fLabel = el.closest('.fader-col')?.querySelector('.fader-label');
+    if (fLabel && name) fLabel.textContent = name;
+  }
+  console.log(`[midiwave] Renamed ${selectedKey} → "${name}"`);
 }
 
 function updateSelectedCC() {
@@ -1141,17 +1154,18 @@ function updateControlVisual(key) {
       const fLabel = el.closest('.fader-col')?.querySelector('.fader-label');
       if (fLabel) fLabel.textContent = `${Math.round(ctrl.lastValue / 127 * 100)}%`;
     }
-    // Encoder value display
+    // Encoder value display — always show value, use name in label
     const valEl = el.querySelector('.val');
     if (valEl) {
       const pct = Math.round(ctrl.lastValue / 127 * 100);
-      valEl.textContent = ctrl.name ? `${pct}%` : ctrl.lastValue;
+      valEl.textContent = `${pct}%`;
     }
   }
 
-  if (ctrl.name) {
-    const label = el.querySelector('span:first-child');
-    if (label && !el.classList.contains('fader-track')) label.textContent = ctrl.name || ctrl.cc;
+  // Always update label — show name if set, otherwise CC number
+  const label = el.querySelector('span:first-child');
+  if (label && !el.classList.contains('fader-track') && !el.classList.contains('fader-col')) {
+    label.textContent = ctrl.name || `CC ${ctrl.cc}`;
   }
 }
 
@@ -1379,11 +1393,14 @@ function mapIncomingCC(ch, cc, val) {
         updateSelectedInfo(ctrl);
       }
 
-      // Show knob value on LCXL3 screen (if screen loop isn't running)
+      // Show knob name + value on LCXL3 screen instantly
       if (!screenInterval && (key.startsWith('enc:') || key.startsWith('fader:'))) {
         const name = ctrl.name || `CC ${ctrl.cc}`;
         const pct = Math.round(val / 127 * 100);
-        sendScreenDirect('midiwave', name, `${pct}%`);
+        const isRel = ctrl.ch === 16 && (val !== 0);
+        const delta = val - 64;
+        const valStr = isRel && delta !== 0 ? `${pct}% (${delta > 0 ? '+' : ''}${delta})` : `${pct}%`;
+        sendScreenDirect(name, valStr, '');
       }
 
       matched = true;
