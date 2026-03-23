@@ -1,0 +1,9 @@
+;(function () {
+
+    $(document).ready(function () {
+        $(".mediaobject img").wrap(function () {
+            return "<a data-lightbox='lightbox-images' href='" + $(this).attr('src') + "'></a>";
+        });
+    });
+
+})();

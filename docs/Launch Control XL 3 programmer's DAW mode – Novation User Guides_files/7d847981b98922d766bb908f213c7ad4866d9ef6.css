@@ -1,0 +1,54 @@
+.section-articles .subnav{
+    margin-bottom: 10px;
+}
+
+.section-articles .subnav .sidenav-item{
+    font-size: 0.8em;
+    padding: 5px 5px 5px 15px;
+    margin: 0;
+}
+
+.subnav .sidenav-item.sub-level-2{
+    padding: 5px 5px 5px 25px;
+}
+
+.subnav .sidenav-item.current-article,
+.subnav .sidenav-item:hover{
+    background-color: transparent;
+    color: #2196f3;
+    font-weight: bold;
+}
+
+.subnav .sidenav-item:hover{
+    font-weight: 300;
+}
+
+@media (min-width : 1024px){
+    .section-articles.affix{
+        position: fixed;
+        top: 0;
+        overflow: auto;
+        max-height: 100%;
+        padding-top: 30px;
+        padding-bottom: 30px;
+    }
+}
+
+@media (max-width : 1023px){
+    .section-articles.affix{
+        width: 100% !important;
+    }
+}
+
+.subnav a:active,
+.subnav a:focus{
+    text-decoration: none;
+}
+
+/* Adjusting the placement of the anchors so that links to them go to where the title is */
+a[data-zd-article]{
+    display: block;
+    position: relative;
+    top: -50px;
+    visibility: hidden;
+}

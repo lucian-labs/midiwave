@@ -1,0 +1,932 @@
+/* Legacy styles */
+span.guilabel {
+    font-weight: bold;
+}
+
+/* Accordion panels */
+.panel-default {
+    margin-top: 1em;
+}
+
+.panel-heading .title:after {
+    content: "\f078";
+    /*f067 for plus sign instead of chevron*/
+    color: #999;
+    font-family: FontAwesome;
+    font-size: 0.6em;
+    font-weight: 100;
+    margin-left: 10px;
+    vertical-align: 10%;
+    font-style: normal;
+}
+
+.panel-heading.active .title:after {
+    content: "\f077";
+    /*f068 for minus sign instead of chevron*/
+}
+
+.panel-heading {
+    color: #444;
+    cursor: pointer;
+    padding: 10px;
+    padding-bottom: 1px;
+    width: 100%;
+    text-align: left;
+    border: none;
+    outline: none;
+    transition: 0.4s;
+    border-bottom: 1px solid #E5E5E5;
+}
+
+.panel .section {
+    margin-bottom: 20px;
+}
+
+/* Add a background color to the title if it is clicked on (add the .active class with JS), and when you move the mouse over it (hover) */
+.panel-heading.active,
+.panel-heading:hover {
+    background-color: #ddd;
+}
+
+/* Style the accordion panel. Note: hidden by default */
+div.panel-body {
+    padding: 10px;
+    /*background-color: white;*/
+    display: none;
+}
+
+
+#article-comments {
+    display: none;
+}
+
+.article-body code.sgmltag-element,
+.article-body code.sgmltag-attribute {
+    color: #1486d2;
+    background: transparent;
+    border: none;
+    border-radius: inherit;
+    padding: 0px;
+    margin: 0px;
+}
+
+code.sgmltag-attribute:before {
+    content: '@';
+}
+
+.article .table th,
+.article .table th a {
+    color: inherit;
+    font-size: inherit;
+    font-weight: 700;
+    text-align: left;
+}
+
+.article td.tableheader {
+    font-weight: bold;
+    font-size: inherit;
+}
+
+.article .section h1 {
+    font-weight: 700;
+    font-size: 36px;
+}
+
+.article .section h2 {
+    font-weight: 700;
+    margin-bottom: 0px;
+    text-align: left;
+}
+
+/*.article .titlepage h3.title*/
+.article h3 {
+    font-weight: 500;
+    color: #2C2D30;
+    line-height: 27px;
+    display: block;
+}
+
+/*Accordion titles:*/
+.article .panel-heading h1,
+.article .panel-heading h2,
+.article .panel-heading h3,
+.article .panel-heading h4,
+.article .panel-heading h5,
+.article .panel-heading h6,
+.article .panel-heading .title {
+    padding-bottom: 0px;
+    margin-bottom: 10px;
+    border-bottom: none;
+    margin-top: 0px;
+}
+
+
+.article .section h4 {
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.article .section h5 {
+    font-weight: 700;
+    font-size: 16px;
+}
+
+
+
+.promoted-articles-item {
+    display: inline !important;
+}
+
+.article .informaltable.wide {
+    width: 150%;
+}
+
+.taxonomy-business:before {
+    content: 'Business';
+    background-color: #42A5F5;
+}
+
+.taxonomy-professional:before {
+    content: 'Professional';
+    background-color: #f9b300;
+
+}
+
+.taxonomy-business:before,
+.taxonomy-professional:before {
+    color: #fff;
+    border-radius: 4px;
+    padding: 4px;
+    font-size: 10px;
+    display: block;
+    margin-bottom: 10px;
+    width: 70px;
+}
+
+dt,
+dd {
+    display: inline-block;
+}
+
+dt {
+    vertical-align: top;
+    /*color: #54a1e5;*/
+    width: 30%;
+    padding-right: 10px;
+    margin-top: 1em;
+    font-weight: 600;
+}
+
+dt em {
+    font-style: normal;
+}
+
+dd {
+    width: 60%;
+}
+
+.caption p {
+    margin-top: 0px;
+    font-style: italic;
+    margin-bottom: 2em;
+    text-align: center;
+}
+
+.article h4,
+.procedure .title {
+    font-weight: 600;
+    margin-top: 40px;
+}
+
+
+h1.article-title {
+    font-weight: 900;
+}
+
+
+.article .note h3.title,
+.article .tip h3.title,
+.article .warning h3.title,
+.article .caution h3.title,
+.article .important h3.title {
+    margin-top: 0.5em;
+    font-size: 18px;
+    line-height: inherit;
+    padding: 0px;
+    border-bottom: none;
+    margin-bottom: 0px;
+}
+
+.article .note,
+.article .tip{
+    display: block;
+    padding: 12px 18px 12px 65px;
+    -moz-background-clip: padding;
+    /* -webkit-background-clip: padding-box; */
+    /* background-clip: padding-box; */
+    border: 1px;
+    border-style: solid;
+    line-height: 1.5rem;
+    margin-top: 18px;
+    margin-bottom: 18px;
+    position: relative;
+    border-radius: 5px;
+    border: 2px solid #009DE1;
+    background: #F5F5F5;
+    margin-left: 0px !important;
+    margin-right: 0px !important;
+    }
+
+.article .warning{
+    border-radius: 5px;
+    border: 2px solid #E12800;
+    background: #F5F5F5;
+    display: block;
+    padding: 12px 18px 12px 65px;
+    border-radius: 6px;
+    -moz-background-clip: padding;
+    /* -webkit-background-clip: padding-box; */
+    /* background-clip: padding-box; */
+    border: 1px;
+    border-style: solid;
+    line-height: 1.5rem;
+    margin-top: 18px;
+    margin-bottom: 18px;
+    position: relative;
+    margin-left: 0px !important;
+    margin-right: 0px !important;
+
+}
+.article .caution,
+.article .important{
+    display: block;
+    padding: 12px 18px 12px 65px;
+    -moz-background-clip: padding;
+    /* -webkit-background-clip: padding-box; */
+    /* background-clip: padding-box; */
+    border: 1px;
+    border-style: solid;
+    line-height: 1.5rem;
+    margin-top: 18px;
+    margin-bottom: 18px;
+    position: relative;
+    border-radius: 5px;
+    border: 2px solid #FFD600;
+    background: #F5F5F5;
+    margin-left: 0px !important;
+    margin-right: 0px !important;
+    }
+
+
+
+.article .tip:before{
+    content: '\f040';
+    color: #000;
+    font-size: 28px;
+    font-weight: 300;
+    position: absolute;
+    left: 20px;
+    top: 22px;
+    vertical-align: middle;
+    font-family: FontAwesome;
+}
+
+
+.article .note:before,
+.article .warning:before,
+.article .caution:before,
+.article .important:before {
+    content: '\f040';
+    color: #000;
+    font-size: 28px;
+    font-weight: 300;
+    position: absolute;
+    left: 20px;
+    top: 22px;
+    vertical-align: middle;
+    font-family: FontAwesome;
+}
+
+.article .important:before {
+    content: '\f05a';
+}
+
+
+
+.article .tip:before {
+    content: '\f0d0';
+    color: #A39BE;
+}
+
+.article .note:before {
+    content: '\f0d0';
+    color: #A39BE;
+}
+
+/*Warning*/
+.article .warning {
+    border-color: #ffb74d;
+    background-color: #ffebcc;
+
+}
+
+.article .warning:before {
+    content: '\f071';
+    color: #ffb74d;
+}
+
+/*Caution*/
+.article .caution {
+    border-color: #ffe81a;
+    background-color: #fdffcc;
+
+}
+
+.article .caution:before {
+    content: '\f071';
+    color: #ffe81a;
+}
+.article .keycap {
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 0.1em 0.5em;
+    margin: 0 0.2em;
+    box-shadow: 0 1px 0px rgba(0, 0, 0, 0.2), 0 0 0 2px #fff inset;
+    background-color: #f7f7f7;
+}
+
+.article .keycap strong,
+.article .keycap em,
+.article .keycap i {
+    font-style: normal;
+    font-weight: normal;
+}
+
+.article-body img {
+    */-moz-border-radius: 6px;
+    /* border-radius: 6px; */
+    -moz-background-clip: 
+    padding;-webkit-background-clip:padding-box;
+    background-clip:  padding-box;max-width: 100%;
+    text-align: center;
+}
+
+.article-author,
+.article-subscribe,
+.article-unsubscribe {
+    display: none !important;
+}
+
+.article-content {
+    margin-top: 0px !important;
+}
+
+.article-header {
+    margin-bottom: 0px !important;
+}
+
+.no-image-border img {
+    border: none;
+    box-shadow: none;
+}
+
+.article .informaltable td,
+.article .table td,
+.article .alternate td {
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
+.table{
+    padding: 5px 0 5px 0;
+}
+
+.article .table table,
+.article .informaltable table,
+.article .alternate table,
+tr,
+td,
+th {
+    /* border: none !important; */
+}
+
+.article .table table>tbody+tbody,
+.article .informaltable table>tbody+tbody,
+.article .alternate table>tbody+tbody {
+
+}
+
+/*.article .table table tr:nth-child(even),
+.article .informaltable table tr:nth-child(even),
+.article .alternate table tr:nth-child(even){
+    background-color: #F7F7F7;
+}
+*/
+.article .informaltable th,
+.article .table th,
+.article .alternate table th {
+    border-bottom: thin solid #555 !important;
+}
+
+.article .zd-article .informaltable td,
+.article .table td {
+    vertical-align: top;
+    border-bottom: 0.5px solid #eee !important;
+
+}
+
+span.remark {
+    display: none;
+}
+
+.zd-article ol,
+.zd-article ul {
+    margin-bottom: 2em !important;
+}
+
+.article .alternate table {
+    width: 130%
+        /* Only used for the keyboard shortcuts*/
+}
+
+body {
+    font-family: "brockmann-regular", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+
+    -webkit-font-smoothing: antialiased;
+    -webkit-margin-after: 12px;
+    -webkit-margin-before: 0px;
+    -webkit-margin-end: 0px;
+    -webkit-margin-start: 0px;
+}
+
+.article .keycap {
+    font-size: 0.85rem;
+}
+
+.article .keycap em {
+    font-style: normal;
+}
+
+/* Special for callout icons */
+.content-container .calloutlist img,
+.content-container .co img {
+    width: 1em;
+    margin-top: 0.2em;
+}
+
+/* If not using images for callouts, make sure the color of the callout number is not changed by a highlight plugin */
+.co span {
+    color: #54a1e5 !important;
+}
+
+.videoobject {
+    position: relative;
+    padding-bottom: 56.25%;
+    height: 0;
+    overflow: hidden;
+    margin-top: 2em;
+    margin-bottom: 1em;
+}
+
+.videoobject iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* For Wistia javascript embed */
+.video-container.wistia {
+    max-width: 620px;
+}
+
+/*.wistia_embed{
+    height: 349px;
+    width: 620px;
+}*/
+
+.video-container.wistia .videoobject {
+    padding-top: 0px;
+}
+
+/* Override this in custom css to set the width for videos if you want a set size */
+.video-container {
+    margin: auto;
+    width: 90%;
+}
+
+@media (max-width: 768px) {
+    .video-container {
+        margin: auto;
+        width: 100%;
+    }
+
+.inlinemediaobject {
+    display: inline-block;
+    height: 1em;
+    padding: 0px 2px 0px 2px;
+}
+
+.inlinemediaobject img:not([height]):not([width]) {
+    height: 100%;
+    width: auto;
+}
+
+/*Glossary popovers*/
+.popover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1060;
+    display: none;
+    max-width: 276px;
+    padding: 1px;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1.42857143;
+    text-align: left;
+    text-align: start;
+    text-decoration: none;
+    text-shadow: none;
+    text-transform: none;
+    letter-spacing: normal;
+    word-break: normal;
+    word-spacing: normal;
+    word-wrap: normal;
+    white-space: normal;
+    background-color: #fff;
+    -webkit-background-clip: padding-box;
+    background-clip: padding-box;
+    border: 1px solid #ccc;
+    border: 1px solid rgba(0, 0, 0, .2);
+    border-radius: 6px;
+    -webkit-box-shadow: 0 5px 10px rgba(0, 0, 0, .2);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, .2);
+
+    line-break: auto;
+}
+
+.popover.top {
+    margin-top: -10px;
+}
+
+.popover.right {
+    margin-left: 10px;
+}
+
+.popover.bottom {
+    margin-top: 10px;
+}
+
+.popover.left {
+    margin-left: -10px;
+}
+
+.popover-title {
+    padding: 8px 14px;
+    margin: 0;
+    font-size: 14px;
+    background-color: #f7f7f7;
+    border-bottom: 1px solid #ebebeb;
+    border-radius: 5px 5px 0 0;
+}
+
+.popover-content {
+    padding: 9px 14px;
+}
+
+.popover .mediaobject * {
+    width: 100% !important;
+}
+
+.mediaobject{
+    margin: auto; !important
+}
+
+a.glossterm {
+    border-bottom: 1px dotted #333333;
+}
+
+/* Make sure images don't overflow*/
+.popover-content * {
+    max-width: 100%;
+}
+
+.popover>.arrow,
+.popover>.arrow:after {
+    position: absolute;
+    display: block;
+    width: 0;
+    height: 0;
+    border-color: transparent;
+    border-style: solid;
+}
+
+.popover>.arrow {
+    border-width: 11px;
+}
+
+.popover>.arrow:after {
+    content: "";
+    border-width: 10px;
+}
+
+.popover.top>.arrow {
+    bottom: -11px;
+    left: 50%;
+    margin-left: -11px;
+    border-top-color: #999;
+    border-top-color: rgba(0, 0, 0, .25);
+    border-bottom-width: 0;
+}
+
+.popover.top>.arrow:after {
+    bottom: 1px;
+    margin-left: -10px;
+    content: " ";
+    border-top-color: #fff;
+    border-bottom-width: 0;
+}
+
+.popover.right>.arrow {
+    top: 50%;
+    left: -11px;
+    margin-top: -11px;
+    border-right-color: #999;
+    border-right-color: rgba(0, 0, 0, .25);
+    border-left-width: 0;
+}
+
+.popover.right>.arrow:after {
+    bottom: -10px;
+    left: 1px;
+    content: " ";
+    border-right-color: #fff;
+    border-left-width: 0;
+}
+
+.popover.bottom>.arrow {
+    top: -11px;
+    left: 50%;
+    margin-left: -11px;
+    border-top-width: 0;
+    border-bottom-color: #999;
+    border-bottom-color: rgba(0, 0, 0, .25);
+}
+
+.popover.bottom>.arrow:after {
+    top: 1px;
+    margin-left: -10px;
+    content: " ";
+    border-top-width: 0;
+    border-bottom-color: #fff;
+}
+
+.popover.left>.arrow {
+    top: 50%;
+    right: -11px;
+    margin-top: -11px;
+    border-right-width: 0;
+    border-left-color: #999;
+    border-left-color: rgba(0, 0, 0, .25);
+}
+
+.popover.left>.arrow:after {
+    right: 1px;
+    bottom: -10px;
+    content: " ";
+    border-right-width: 0;
+    border-left-color: #fff;
+}
+
+.hide {
+    display: none !important;
+}
+
+.abstract-title {
+    font-weight: bold;
+}
+
+.article .glossary>dl>dt .glossterm {
+    top: auto;
+    visibility: visible;
+}
+
+/* Do not display the preview linktext provider helper in output */
+.linktextprovider {
+    display: none !important;
+}
+
+iframe.gdoc,
+iframe.onedrive {
+    display: block;
+    width: 100%;
+    height: 500px;
+    border: 1px solid #ccc;
+}
+
+/* Sub procedures are treated like substeps */
+ol.procedure ol.procedure,
+ul.procedure ul.procedure {
+    list-style-type: lower-alpha !important;
+}
+
+ol.procedure ol.procedure ol.procedure,
+ul.procedure ul.procedure ul.procedure {
+    list-style-type: lower-roman !important;
+}
+
+ol.procedure ol.procedure>li::before,
+ul.procedure ul.procedure>li::before {
+    display: none;
+}
+
+.relationship-toc ul {
+    margin: 0 0 0em;
+    list-style: none;
+}
+
+.relationship-toc>ul {
+    padding-left: 0px;
+}
+
+div.relationship-toc-title {
+    font-weight: bold;
+    margin-bottom: 0.5em;
+}
+
+
+.section-toc .topic-link,
+.relationship-toc .topic-link {
+    font-size: 0.9em;
+}
+
+.related-topic p {
+    margin-bottom: 0em;
+    margin-top: 0em;
+}
+
+/* CHECKLISTS */
+/* Remove margins and padding from the list */
+ul.checklist {
+    margin: 0;
+    padding: 0;
+    padding-left: 0px;
+}
+
+/* Style the list items */
+ul.checklist>li {
+    cursor: pointer;
+    position: relative;
+    padding: 12px 8px 12px 40px;
+    /*background: #eee;*/
+    font-size: 18px;
+    transition: 0.2s;
+    list-style-type: none;
+
+    /* make the list items unselectable */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+/* Background-color on hover */
+ul.checklist li.checked:hover {
+    background-color: #eee;
+}
+
+ul.checklist li.checked,
+ul.checklist>li:hover {
+    background-color: #eee;
+}
+
+/* When clicked on, add a background color and strike out text */
+ul.checklist li.checked .check-item-content {
+    text-decoration: line-through;
+    opacity: 0.2;
+}
+
+
+
+/* Style the close button */
+.close {
+    position: absolute;
+    right: 0;
+    top: 0;
+    padding: 12px 16px 12px 16px;
+}
+
+.close:hover {
+    background-color: #f44336;
+    color: white;
+}
+
+.checklist-checkbox-wrapper {
+    /*position: relative;*/
+    display: inline-block;
+}
+
+.listitem {
+    position: relative;
+}
+
+.check-item-content {
+    display: inline-block;
+    margin-left: 2em;
+}
+
+.checklist-checkbox-wrapper label {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    cursor: pointer;
+    height: 28px;
+    left: 16px;
+    position: absolute;
+    top: 12px;
+    width: 28px;
+}
+
+.checklist-checkbox-wrapper label:after {
+    border: 2px solid #ccc;
+    border-top: none;
+    border-right: none;
+    content: "";
+    height: 6px;
+    left: 7px;
+    opacity: 0.4;
+    position: absolute;
+    top: 8px;
+    transform: rotate(-45deg);
+    width: 12px;
+}
+
+.checklist-checkbox-wrapper input[type="checkbox"] {
+    visibility: hidden;
+}
+
+.checklist-checkbox-wrapper input[type="checkbox"]:checked+label {
+    background-color: #fff;
+    border-color: #2ab27b;
+}
+
+.checklist-checkbox-wrapper input[type="checkbox"]:checked+label:after {
+    opacity: 1;
+    border-color: #2ab27b;
+}
+
+.checklist-reset-wrapper {
+    text-align: right;
+    padding: 12px 16px 12px 16px;
+}
+
+.checklist-reset {
+    color: #ccc;
+}
+
+/* Anchor links */
+.anchor-icon {
+    font-size: 0.8em;
+    margin-left: 10px;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out 0.1s;
+    -webkit-transition: opacity 0.2s ease-in-out 0.1s;
+    -moz-transition: opacity 0.2s ease-in-out 0.1s;
+    -ms-transition: opacity 0.2s ease-in-out 0.1s;
+}
+
+.title:hover>.anchor-icon {
+    opacity: 1;
+}
+
+.article a[id]:not(.anchor-icon) {
+    display: block;
+    position: relative;
+    top: -100px;
+    visibility: hidden;
+}
+
+/* End Anchor links */
+
+/* Swagger embed */
+.topic-link.swagger-subnav {
+    font-size: 0.8em;
+    padding: 5px 5px 5px 15px;
+    margin: 0;
+}
+
+.swagger-ui .info .title small {
+    display: none !important;
+}

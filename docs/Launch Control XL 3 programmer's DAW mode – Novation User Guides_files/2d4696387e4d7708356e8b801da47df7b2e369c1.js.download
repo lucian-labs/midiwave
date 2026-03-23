@@ -1,0 +1,35 @@
+;(function () {
+    $(document).ready(function () {
+
+        $('.glossary-definitions > div').attr('id', function () {
+            return $(this).attr('title');
+        });
+
+        $('.glossterm').attr('data-toggle', 'popover');
+
+        $('.glossterm[href]').attr('data-popover-content', function () {
+            var id = $(this).attr('href').split('#').pop();
+            return '#' + id;
+        });
+
+
+        //Bootstrap popovers for glossterms
+        $('.glossterm').popover({
+            animation: "fade",
+            delay: {
+                show: "500",
+                hide: "100"
+            },
+            trigger: "hover",
+            placement: "auto bottom",
+            container: 'body',
+            html: true,
+            content: function () {
+                var clone = $($(this).data('popover-content')).clone(true).removeClass('hide');
+                return clone;
+            }
+        });
+
+    });
+
+})();

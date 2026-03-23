@@ -1017,73 +1017,40 @@ function learnSelectedCC() {
 
 // ─── LED Control (CC on ch1, value = color palette index) ───
 // Novation LCXL3 MK3 color palette (approximate CSS colors for display)
+// Official LCXL3 128-color palette (extracted from Novation docs)
 const LED_PALETTE = [
-  // 0-3: off, greys, white
-  '#000000','#333333','#777777','#ffffff',
-  // 4-7: red (ll, l, m, d)
-  '#ffcccc','#ff6666','#ee0000','#880000',
-  // 8-11: orange (ll, l, m, d)
-  '#ffddaa','#ffaa44','#ee7700','#884400',
-  // 12-15: yellow (ll, l, m, d)
-  '#ffffaa','#ffff44','#dddd00','#888800',
-  // 16-19: yellow-green (ll, l, m, d)
-  '#ddffaa','#aaff44','#88dd00','#448800',
-  // 20-23: neon green (ll, l, m, d)
-  '#aaffaa','#44ff44','#00ee00','#008800',
-  // 24-27: teal (ll, l, m, d)
-  '#aaffdd','#44ffaa','#00dd88','#008855',
-  // 28-31: teal (same pattern)
-  '#aaffee','#44ffcc','#00ddaa','#008866',
-  // 32-35: more teal
-  '#aaffff','#44ffee','#00ddcc','#008888',
-  // 36-39: bluish teal
-  '#aaeeff','#44ddff','#00bbdd','#007788',
-  // 40-43: sky blue
-  '#aaddff','#44bbff','#0099ee','#006688',
-  // 44-47: rich blue
-  '#aaaaff','#4488ff','#0044ee','#002288',
-  // 48-51: purples
-  '#ccaaff','#9944ff','#6600ee','#440088',
-  // 52-55: pinks
-  '#ffaaee','#ff44cc','#dd00aa','#880066',
-  // 56-59: fuscia
-  '#ffaadd','#ff44aa','#ee0088','#880055',
-  // 60-63: red then yellows
-  '#ee0000','#ffff00','#dddd00','#aaaa00',
-  // 64-67: green to blue
-  '#00ee00','#00dddd','#0088ff','#0044dd',
-  // 68-71: teal, purple, pink, dark pink
-  '#00ddaa','#9944ff','#ff44aa','#aa0066',
-  // 72-75: red, pale yellow, yellow-green, yellow
-  '#ee0000','#ffffaa','#aaff44','#ffff00',
-  // 76-79: green, teal, sky, lazuli
-  '#00ee00','#00ddaa','#44bbff','#2244cc',
-  // 80-83: purple, fuscia, pink, dark orange
-  '#8800dd','#ee00aa','#ff66aa','#cc5500',
-  // 84-87: orange, pale yellow, yellow, frog green
-  '#ff8800','#ffffaa','#ffff00','#66dd00',
-  // 88-91: lime, ice, frozen, pale purple
-  '#aaff00','#ccffff','#aaeeff','#ccaaff',
-  // 92-95: dark pale purp, pink, fuscia, rich fuscia
-  '#886699','#ff66aa','#ee00aa','#cc0088',
-  // 96-99: orange, yellow, yellow-green, yellow
-  '#ff8800','#ffff00','#aaff00','#dddd00',
-  // 100-101: (continuing)
-  '#ffff00','#dddd00',
-  // 102-105: yellow, electric green, pale green, pale purp
-  '#ffff00','#00ff44','#aaffaa','#ccaaff',
-  // 106-109: muted purp, peach, red, pink
-  '#775599','#ffccaa','#ee0000','#ff66aa',
-  // 110-111: (continuing)
-  '#ff8888','#ffaaaa',
-  // 112-115: orange, light orange, pale yellow, yellow
-  '#ff8800','#ffaa44','#ffffaa','#ffff00',
-  // 116-119: deep purp, skin, ice, pale purp
-  '#440088','#ffccaa','#ccffff','#ccaaff',
-  // 120-123: pale purp, dim purp, grey, white
-  '#ddaaff','#664488','#555555','#dddddd',
-  // 124-127: red, dark red, green, dark green
-  '#ee0000','#880000','#00ee00','#008800',
+  '#000000','#616161','#b3b3b3','#ffffff', //  0-3: off, grey, light grey, white
+  '#ffb3b3','#ff6161','#dd6161','#b36161', //  4-7: red (ll, l, m, d)
+  '#61b361','#61b38c','#618cd5','#6161ff', //  8-11: mixed pale
+  '#61b3b3','#8c61f3','#ccb3c2','#8c7681', // 12-15: teal, purple, pink-grey, muted
+  '#616161','#ffb361','#dd8c61','#b37661', // 16-19: dark, orange (l, m, d)
+  '#ffeea1','#ffff61','#dddd61','#b3b361', // 20-23: yellow (ll, l, m, d)
+  '#ff6161','#f3ffa1','#eefc61','#ccff61', // 24-27: red, yellow-green (ll, l, m)
+  '#76dd61','#61ffcc','#61e9ff','#61a1ff', // 28-31: green, teal, cyan, blue
+  '#ddffa1','#c2ff61','#a1dd61','#81b361', // 32-35: yellow-green (ll, l, m, d)
+  '#c2ffb3','#61ff61','#61dd61','#61b361', // 36-39: green (ll, l, m, d)
+  '#8c61ff','#cc61fc','#ee8cdd','#a17661', // 40-43: purple, magenta, pink, brown
+  '#ffa161','#ddf961','#d5ff8c','#61ff61', // 44-47: orange, yellow-green, lime, green
+  '#c2ffc2','#61ff8c','#61dd76','#61b36b', // 48-51: pale green (ll, l, m, d)
+  '#c2ffcc','#61ffcc','#61dda1','#61b381', // 52-55: mint (ll, l, m, d)
+  '#b3ffa1','#b3ffa1','#b3fff6','#616e7c', // 56-59: lime, lime, aqua, slate
+  '#a1c2f6','#d5c2f9','#f98cff','#ff61cc', // 60-63: periwinkle, lavender, pink, hot pink
+  '#c2fff3','#61ffe9','#61ddc2','#61b396', // 64-67: aqua (ll, l, m, d)
+  '#c2f3ff','#61eeff','#61c7dd','#61a1b3', // 68-71: sky blue (ll, l, m, d)
+  '#ffc261','#f3ee61','#e4ff61','#ddcc61', // 72-75: gold, yellow, lime, olive
+  '#b3a161','#61ba76','#76c28c','#8181a1', // 76-79: khaki, green, sage, grey-blue
+  '#c2ddff','#61c7ff','#61a1dd','#6181b3', // 80-83: light blue (ll, l, m, d)
+  '#a18cff','#6161ff','#6161dd','#6161b3', // 84-87: blue-purple (ll, l, m, d)
+  '#818ccc','#ccaa81','#dd6161','#f9b3a1', // 88-91: steel, tan, red, salmon
+  '#f9ba76','#fff38c','#e9f9a1','#d5ee76', // 92-95: peach, pale yellow, lime, green-yellow
+  '#ccb3ff','#a161ff','#8161dd','#7661b3', // 96-99: purple (ll, l, m, d)
+  '#ffb3ff','#ff61ff','#dd61dd','#b361b3', //100-103: magenta (ll, l, m, d)
+  '#8181a1','#aa6161','#81f661','#61b361', //104-107: grey-blue, dark red, neon green, green
+  '#f3ee61','#b3b3b3','#eec261','#c27661', //108-111: yellow, grey, amber, brown
+  '#ffb3d5','#ff61c2','#dd61a1','#b3618c', //112-115: pink (ll, l, m, d)
+  '#ff7661','#e9b361','#ddc261','#a1a161', //116-119: coral, gold, olive-yellow, olive
+  '#e96161','#aa6161','#81f661','#61b361', //120-123: red, dark red, neon green, green
+  '#f3ee61','#b3a161','#eec261','#c27661', //124-127: yellow, khaki, amber, brown
 ];
 
 function sendSelectedLED() {
