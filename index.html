@@ -968,6 +968,10 @@ function updateSelectedName() {
     const fLabel = el.closest('.fader-col')?.querySelector('.fader-label');
     if (fLabel && name) fLabel.textContent = name;
   }
+  // Update the LCXL3 temp display for this control
+  if (activeOutput && controlMap[selectedKey].cc >= 5 && controlMap[selectedKey].cc <= 36) {
+    configureControlDisplay(activeOutput, controlMap[selectedKey].cc, name || `CC ${controlMap[selectedKey].cc}`);
+  }
   console.log(`[midiwave] Renamed ${selectedKey} → "${name}"`);
 }
 
@@ -1393,14 +1397,14 @@ function mapIncomingCC(ch, cc, val) {
         updateSelectedInfo(ctrl);
       }
 
-      // Show knob name + value on LCXL3 screen instantly
-      if (!screenInterval && (key.startsWith('enc:') || key.startsWith('fader:'))) {
-        const name = ctrl.name || `CC ${ctrl.cc}`;
+      // Update the control's temp display value text
+      // This overrides the raw number the device would normally show
+      if (activeOutput && ctrl.cc >= 5 && ctrl.cc <= 36) {
         const pct = Math.round(val / 127 * 100);
-        const isRel = ctrl.ch === 16 && (val !== 0);
+        const isRel = ctrl.ch === 16;
         const delta = val - 64;
         const valStr = isRel && delta !== 0 ? `${pct}% (${delta > 0 ? '+' : ''}${delta})` : `${pct}%`;
-        sendScreenDirect(name, valStr, '');
+        updateControlDisplayValue(activeOutput, ctrl.cc, valStr);
       }
 
       matched = true;
@@ -1474,6 +1478,8 @@ function send(data) {
 function sendDAWMode(on) {
   console.log('[midiwave] DAW mode', on ? 'ON' : 'OFF');
   send([0xF0, 0x00, 0x20, 0x29, 0x02, 0x15, 0x02, on ? 0x7F : 0x00, 0xF7]);
+  // After entering DAW mode, configure all control displays with names
+  if (on) setTimeout(configureAllControlDisplays, 200);
 }
 
 function sendRelativeMode(row, on) {
@@ -1777,26 +1783,93 @@ function sendScreenTwoStep() {
   }, 400);
 }
 
+// ─── Screen Control ───
+// Per the official programmer's guide:
+// - Targets 05h-0Ch = fader temp displays (CC 5-12)
+// - Targets 0Dh-24h = encoder temp displays (CC 13-36)
+// - Target 35h = stationary/permanent display
+// - Target 36h = overlay/temporary display
+// - Config bit 6: auto-generate temp display on change (default: set)
+// - Config bit 5: auto-generate temp display on touch (default: set)
+// - Arrangement 1: Name + Text Value (2 fields)
+// - Arrangement 2: Title + Name + Text Value (3 fields)
+// - Arrangement 4: Name + Numeric Value (default, 1 field — name only)
+
+const SYSEX_HEADER = [0xF0, 0x00, 0x20, 0x29, 0x02, 0x15];
+const textBytes = (s) => [...s].map(c => c.charCodeAt(0) & 0x7F);
+
+function configureDisplay(port, target, arrangement, autoOnChange = true, autoOnTouch = true) {
+  let config = arrangement & 0x1F;
+  if (autoOnChange) config |= 0x40; // bit 6
+  if (autoOnTouch) config |= 0x20;  // bit 5
+  port.send(new Uint8Array([...SYSEX_HEADER, 0x04, target, config, 0xF7]));
+}
+
+function setDisplayText(port, target, field, text) {
+  port.send(new Uint8Array([...SYSEX_HEADER, 0x06, target, field, ...textBytes(text), 0xF7]));
+}
+
+function triggerDisplay(port, target) {
+  // Config 7Fh = trigger display with current contents
+  port.send(new Uint8Array([...SYSEX_HEADER, 0x04, target, 0x7F, 0xF7]));
+}
+
+function cancelDisplay(port, target) {
+  port.send(new Uint8Array([...SYSEX_HEADER, 0x04, target, 0x00, 0xF7]));
+}
+
+// Configure a control's temp display with a custom name
+// When the user moves the control, the device shows our name instead of "CC XX"
+function configureControlDisplay(port, cc, name) {
+  // CC index IS the target for temp displays (faders 5-12, encoders 13-36)
+  if (cc < 5 || cc > 36) return;
+  // Arrangement 1: Name + Text Value (we provide the name, device shows value)
+  configureDisplay(port, cc, 1, true, true);
+  // Field 0 = Parameter Name
+  setDisplayText(port, cc, 0x00, name);
+}
+
+// Update a control's value text on its temp display
+function updateControlDisplayValue(port, cc, valueText) {
+  if (cc < 5 || cc > 36) return;
+  // Field 1 = Parameter Value text
+  setDisplayText(port, cc, 0x01, valueText);
+}
+
+// Configure ALL controls with their names
+function configureAllControlDisplays() {
+  if (!activeOutput) return;
+  let count = 0;
+  for (const [key, ctrl] of Object.entries(controlMap)) {
+    if (ctrl.cc && ctrl.cc >= 5 && ctrl.cc <= 36) {
+      const name = ctrl.name || `CC ${ctrl.cc}`;
+      configureControlDisplay(activeOutput, ctrl.cc, name);
+      count++;
+    }
+  }
+  console.log(`[midiwave] Configured ${count} control displays with custom names`);
+}
+
+// Stationary display (target 0x35) — 3-row mode
 function sendScreenDirect(top, mid, bot) {
   if (!activeOutput) return;
   sendScreen3Row(activeOutput, top, mid || '', bot || '');
 }
 
 function sendScreen3Row(port, top, mid, bot) {
-  const H = [0xF0, 0x00, 0x20, 0x29, 0x02, 0x15];
   const target = 0x35;
-  const t = (s) => [...s].map(c => c.charCodeAt(0) & 0x7F);
+  // Config: arrangement 2 (3 rows), auto-on-change + auto-on-touch
+  configureDisplay(port, target, 2, true, true);
+  if (top) setDisplayText(port, target, 0x00, top);
+  if (mid) setDisplayText(port, target, 0x01, mid);
+  if (bot) setDisplayText(port, target, 0x02, bot);
+  triggerDisplay(port, target);
+}
 
-  // Config: arrangement 2, target 0x35
-  port.send(new Uint8Array([...H, 0x04, target, 0x02, 0xF7]));
-  // Field 0x00 = top row
-  if (top) port.send(new Uint8Array([...H, 0x06, target, 0x00, ...t(top), 0xF7]));
-  // Field 0x01 = middle row
-  if (mid) port.send(new Uint8Array([...H, 0x06, target, 0x01, ...t(mid), 0xF7]));
-  // Field 0x02 = bottom row
-  if (bot) port.send(new Uint8Array([...H, 0x06, target, 0x02, ...t(bot), 0xF7]));
-  // Trigger display
-  port.send(new Uint8Array([...H, 0x06, target, ...t(top || mid || ''), 0xF7]));
+// ─── RGB SysEx LED (official format with 53h byte) ───
+function sendRGBLed(port, cc, r, g, b) {
+  // Official format: F0 00 20 29 02 15 01 53 <cc> <R> <G> <B> F7
+  port.send(new Uint8Array([...SYSEX_HEADER, 0x01, 0x53, cc, r & 0x7F, g & 0x7F, b & 0x7F, 0xF7]));
 }
 
 function getAllLCXLPorts() {
