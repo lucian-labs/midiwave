@@ -355,6 +355,9 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
 
 <header>
   <h1>midiwave</h1>
+  <select id="device-profile" onchange="switchProfile(this.value)" style="max-width:180px;"></select>
+  <button onclick="newProfile()" class="btn-sm" title="New device profile">+</button>
+  <button onclick="importProfile()" class="btn-sm" title="Import JSON profile">Import</button>
   <span id="conn-status" class="status disconnected">No MIDI</span>
   <div class="spacer"></div>
   <button id="btn-learn-all" onclick="toggleLearnAll()">Learn All</button>
@@ -449,9 +452,10 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
         </div>
         <div class="row">
           <label>CC</label>
-          <span id="ctrl-cc" style="font-size:12px;font-weight:600;">--</span>
+          <input type="number" id="ctrl-cc" value="" min="0" max="127" style="width:55px;flex:none;font-weight:600;" onchange="updateSelectedCC()">
           <label style="min-width:auto;margin-left:8px;">Ch</label>
-          <span id="ctrl-ch" style="font-size:12px;font-weight:600;">--</span>
+          <input type="number" id="ctrl-ch" value="" min="1" max="16" style="width:45px;flex:none;font-weight:600;" onchange="updateSelectedCh()">
+          <button class="btn-sm" onclick="learnSelectedCC()" title="Move a control to assign its CC">Learn</button>
         </div>
         <div class="row">
           <label>LED</label>
@@ -669,22 +673,185 @@ let monitorEntries = [];
 const MAX_LOG = 500;
 
 // LCXL3 default CC mapping (DAW mode)
-const LCXL3 = {
-  encoders: {
-    row1: { ccs: [13,14,15,16,17,18,19,20], channel: 16 },
-    row2: { ccs: [21,22,23,24,25,26,27,28], channel: 16 },
-    row3: { ccs: [29,30,31,32,33,34,35,36], channel: 16 },
-  },
-  faders: { ccs: [5,6,7,8,9,10,11,12], channel: 16 },
-  buttons: {
-    row1: { ccs: [37,38,39,40,41,42,43,44], channel: 1 },
-    row2: { ccs: [45,46,47,48,49,50,51,52], channel: 1 },
-  },
-  transport: {
-    play: { cc: 116, channel: 1 },
-    rec: { cc: 118, channel: 1 },
+// ─── Device Profiles ───
+// Profiles persist to localStorage as JSON. Each profile stores:
+// - hardware layout (encoders, faders, buttons, transport)
+// - controlMap (cc assignments, names, colors, values)
+// - pages (LED presets, screen text, encoder modes)
+// - metadata (name, daw_mode, led_method, screen config, notes)
+
+const DEFAULT_PROFILES = {
+  'lcxl3': {
+    name: 'Launch Control XL MK3',
+    id: 'lcxl3',
+    daw_mode: true,
+    led_method: 'cc_ch1',
+    identity: { family: '0x48', manufacturer: '00 20 29' },
+    layout: {
+      encoders: {
+        row1: { ccs: [13,14,15,16,17,18,19,20], channel: 16 },
+        row2: { ccs: [21,22,23,24,25,26,27,28], channel: 16 },
+        row3: { ccs: [29,30,31,32,33,34,35,36], channel: 16 },
+      },
+      faders: { ccs: [5,6,7,8,9,10,11,12], channel: 16 },
+      buttons: {
+        row1: { ccs: [37,38,39,40,41,42,43,44], channel: 1 },
+        row2: { ccs: [45,46,47,48,49,50,51,52], channel: 1 },
+      },
+      transport: {
+        play: { cc: 116, channel: 1 },
+        rec: { cc: 118, channel: 1 },
+      }
+    },
+    relative: {
+      enable_channel: 7,
+      rows: { row1: { cc: 69 }, row2: { cc: 72 }, row3: { cc: 73 } },
+      offset: 64
+    },
+    screen: {
+      target: '0x35',
+      arrangement: 2,
+      sysex_header: [0xF0, 0x00, 0x20, 0x29, 0x02, 0x15],
+      fields: { top: 0x00, middle: 0x01, bottom: 0x02 }
+    },
+    color_palette: '128-index',
+    notes: 'Reverse-engineered March 2026. LEDs are CC ch1 val=palette index, NOT SysEx RGB.',
+    controlMap: {},
+    pages: [{ name: 'Default', leds: {}, names: {}, encoders: { row1: 'absolute', row2: 'relative', row3: 'relative' } }]
   }
 };
+
+let profiles = {};
+let activeProfileId = null;
+
+function loadProfiles() {
+  const stored = localStorage.getItem('midiwave-profiles');
+  if (stored) {
+    try { profiles = JSON.parse(stored); } catch(e) { profiles = {}; }
+  }
+  // Ensure defaults exist
+  for (const [id, def] of Object.entries(DEFAULT_PROFILES)) {
+    if (!profiles[id]) profiles[id] = JSON.parse(JSON.stringify(def));
+  }
+  activeProfileId = localStorage.getItem('midiwave-active-profile') || 'lcxl3';
+  if (!profiles[activeProfileId]) activeProfileId = Object.keys(profiles)[0];
+}
+
+function saveProfiles() {
+  // Snapshot current state into active profile before saving
+  if (activeProfileId && profiles[activeProfileId]) {
+    const p = profiles[activeProfileId];
+    p.controlMap = JSON.parse(JSON.stringify(controlMap));
+    p.pages = JSON.parse(JSON.stringify(pages));
+  }
+  localStorage.setItem('midiwave-profiles', JSON.stringify(profiles));
+  localStorage.setItem('midiwave-active-profile', activeProfileId);
+  console.log(`[midiwave] Profiles saved (${Object.keys(profiles).length} profiles, active: ${activeProfileId})`);
+}
+
+function renderProfileDropdown() {
+  const sel = document.getElementById('device-profile');
+  sel.innerHTML = '';
+  for (const [id, p] of Object.entries(profiles)) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = p.name;
+    if (id === activeProfileId) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function switchProfile(id) {
+  // Save current state first
+  saveProfiles();
+  activeProfileId = id;
+  const p = profiles[id];
+  if (!p) return;
+  // Restore controlMap and pages from profile
+  controlMap = p.controlMap ? JSON.parse(JSON.stringify(p.controlMap)) : {};
+  pages = p.pages ? JSON.parse(JSON.stringify(p.pages)) : [{ name: 'Default', leds: {}, names: {}, encoders: { row1: 'absolute', row2: 'relative', row3: 'relative' } }];
+  currentPage = 0;
+  // Rebuild UI with this profile's layout
+  buildController();
+  buildPalette();
+  renderPageList();
+  localStorage.setItem('midiwave-active-profile', id);
+  console.log(`[midiwave] Switched to profile: ${p.name}`);
+}
+
+function newProfile() {
+  const name = prompt('Device name (e.g. "Minilab 3", "Launchpad X"):');
+  if (!name) return;
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  profiles[id] = {
+    name: name,
+    id: id,
+    daw_mode: false,
+    led_method: 'unknown',
+    identity: {},
+    layout: {
+      encoders: {
+        row1: { ccs: [1,2,3,4,5,6,7,8], channel: 1 },
+        row2: { ccs: [9,10,11,12,13,14,15,16], channel: 1 },
+        row3: { ccs: [17,18,19,20,21,22,23,24], channel: 1 },
+      },
+      faders: { ccs: [25,26,27,28,29,30,31,32], channel: 1 },
+      buttons: {
+        row1: { ccs: [33,34,35,36,37,38,39,40], channel: 1 },
+        row2: { ccs: [41,42,43,44,45,46,47,48], channel: 1 },
+      },
+      transport: {}
+    },
+    relative: { enable_channel: null, rows: {}, offset: 64 },
+    screen: null,
+    color_palette: 'unknown',
+    notes: 'New profile — use Learn All to discover CC mappings.',
+    controlMap: {},
+    pages: [{ name: 'Default', leds: {}, names: {}, encoders: { row1: 'absolute', row2: 'absolute', row3: 'absolute' } }]
+  };
+  activeProfileId = id;
+  saveProfiles();
+  renderProfileDropdown();
+  switchProfile(id);
+}
+
+function importProfile() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const id = data.id || data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      data.id = id;
+      profiles[id] = data;
+      activeProfileId = id;
+      saveProfiles();
+      renderProfileDropdown();
+      switchProfile(id);
+      console.log(`[midiwave] Imported profile: ${data.name}`);
+    } catch(err) {
+      alert('Failed to import: ' + err.message);
+    }
+  };
+  input.click();
+}
+
+// Active profile's layout accessor
+function getLayout() {
+  const p = profiles[activeProfileId];
+  return p ? p.layout : DEFAULT_PROFILES.lcxl3.layout;
+}
+
+// Alias for backward compat — points to active profile layout
+let LCXL3 = DEFAULT_PROFILES.lcxl3.layout;
+
+function syncLayoutAlias() {
+  LCXL3 = getLayout();
+}
 
 // Control state — tracks what's mapped, named, colored
 // key = "type:row:col" or "transport:role"
@@ -777,8 +944,8 @@ function selectControl(key) {
   document.getElementById('control-panel').style.display = 'block';
   document.getElementById('selected-info').textContent = `Selected: ${key}`;
   document.getElementById('ctrl-name').value = ctrl.name || '';
-  document.getElementById('ctrl-cc').textContent = ctrl.cc != null ? ctrl.cc : '--';
-  document.getElementById('ctrl-ch').textContent = ctrl.ch != null ? ctrl.ch : '--';
+  document.getElementById('ctrl-cc').value = ctrl.cc != null ? ctrl.cc : '';
+  document.getElementById('ctrl-ch').value = ctrl.ch != null ? ctrl.ch : '';
 
   // Switch to control tab
   switchTab(document.querySelector('.tab:nth-child(2)'), 'tab-control');
@@ -789,6 +956,46 @@ function selectControl(key) {
 function updateSelectedName() {
   if (!selectedKey) return;
   controlMap[selectedKey].name = document.getElementById('ctrl-name').value;
+}
+
+function updateSelectedCC() {
+  if (!selectedKey) return;
+  const val = parseInt(document.getElementById('ctrl-cc').value);
+  if (!isNaN(val) && val >= 0 && val <= 127) {
+    controlMap[selectedKey].cc = val;
+    // Also update the profile layout if it's a known position
+    updateProfileLayout(selectedKey, 'cc', val);
+    console.log(`[midiwave] Set ${selectedKey} CC → ${val}`);
+  }
+}
+
+function updateSelectedCh() {
+  if (!selectedKey) return;
+  const val = parseInt(document.getElementById('ctrl-ch').value);
+  if (!isNaN(val) && val >= 1 && val <= 16) {
+    controlMap[selectedKey].ch = val;
+    updateProfileLayout(selectedKey, 'ch', val);
+    console.log(`[midiwave] Set ${selectedKey} Ch → ${val}`);
+  }
+}
+
+function updateProfileLayout(key, field, val) {
+  // Sync manual CC/Ch edits back to the profile layout
+  const p = profiles[activeProfileId];
+  if (!p) return;
+  const parts = key.split(':');
+  if (parts[0] === 'transport' && p.layout.transport[parts[1]]) {
+    if (field === 'cc') p.layout.transport[parts[1]].cc = val;
+    if (field === 'ch') p.layout.transport[parts[1]].channel = val;
+  }
+}
+
+let learnSingleKey = null;
+function learnSelectedCC() {
+  if (!selectedKey) return;
+  learnSingleKey = selectedKey;
+  document.getElementById('selected-info').textContent = `Learning CC for ${selectedKey} — move a control...`;
+  console.log(`[midiwave] Learn mode: waiting for CC input for ${selectedKey}`);
 }
 
 // ─── LED Control (CC on ch1, value = color palette index) ───
@@ -1113,6 +1320,19 @@ function onMIDIMessage(e) {
   if (monitorEntries.length > MAX_LOG) monitorEntries.shift();
   renderMonitor();
 
+  // Single-control learn mode
+  if (learnSingleKey && type === 'cc') {
+    controlMap[learnSingleKey].cc = d1;
+    controlMap[learnSingleKey].ch = ch;
+    updateProfileLayout(learnSingleKey, 'cc', d1);
+    updateProfileLayout(learnSingleKey, 'ch', ch);
+    document.getElementById('ctrl-cc').value = d1;
+    document.getElementById('ctrl-ch').value = ch;
+    document.getElementById('selected-info').textContent = `Learned: ${learnSingleKey} → CC ${d1} Ch ${ch}`;
+    console.log(`[midiwave] Learned: ${learnSingleKey} → CC ${d1} Ch ${ch}`);
+    learnSingleKey = null;
+  }
+
   // Map incoming to visual controls
   if (type === 'cc') {
     mapIncomingCC(ch, d1, d2);
@@ -1185,7 +1405,8 @@ function updateSelectedInfo(ctrl) {
     const delta = ctrl.lastValue - 64;
     if (delta !== 0) display += ` delta: ${delta > 0 ? '+' : ''}${delta}`;
   }
-  document.getElementById('ctrl-cc').textContent = ctrl.cc != null ? `${ctrl.cc} — ${display}` : '--';
+  document.getElementById('ctrl-cc').value = ctrl.cc != null ? ctrl.cc : '';
+  document.getElementById('ctrl-cc').title = ctrl.cc != null ? `${ctrl.cc} — ${display}` : '';
 }
 
 function updateControlLabel(key) {
@@ -2363,40 +2584,36 @@ function switchPage(direction) {
 // ─── Export ───
 function exportConfig() {
   saveCurrentPage();
-  const config = {
-    device: 'Launch Control XL MK3',
-    daw_mode: true,
-    led_method: 'cc_ch1',
-    controls: {},
-    pages: pages.map(p => ({
-      name: p.name,
-      leds: p.leds,
-      names: p.names,
-      encoders: p.encoders
-    })),
-    screen: {
-      target: document.getElementById('screen-target').value,
-      arrangement: parseInt(document.getElementById('screen-arrange').value)
-    }
-  };
-
+  saveProfiles();
+  // Export the full active profile — this IS the config
+  const profile = JSON.parse(JSON.stringify(profiles[activeProfileId]));
+  // Also embed resolved controls for easy LLM consumption
+  profile.controls = {};
   for (const [key, ctrl] of Object.entries(controlMap)) {
     if (ctrl.cc != null) {
-      config.controls[key] = {
+      profile.controls[key] = {
         cc: ctrl.cc,
         channel: ctrl.ch,
-        name: ctrl.name || key
+        name: ctrl.name || key,
+        ledVal: ctrl.ledVal || null
       };
     }
   }
+  profile.screen = {
+    target: document.getElementById('screen-target').value,
+    arrangement: parseInt(document.getElementById('screen-arrange').value)
+  };
+  profile._exported = new Date().toISOString();
+  profile._midiwave_version = '1.0';
 
-  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  const filename = `midiwave-${profile.id || 'config'}.json`;
+  const blob = new Blob([JSON.stringify(profile, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'midiwave-config.json';
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(a.href);
-  console.log('[midiwave] Config exported with ' + pages.length + ' pages');
+  console.log(`[midiwave] Exported profile "${profile.name}" → ${filename} (${pages.length} pages, ${Object.keys(profile.controls).length} controls)`);
 }
 
 // ─── Tab Switching ───
@@ -2408,9 +2625,20 @@ function switchTab(el, tabId) {
 }
 
 // ─── Init ───
+loadProfiles();
+renderProfileDropdown();
+syncLayoutAlias();
+// Restore controlMap/pages from active profile
+if (profiles[activeProfileId]) {
+  const p = profiles[activeProfileId];
+  if (p.controlMap && Object.keys(p.controlMap).length > 0) controlMap = JSON.parse(JSON.stringify(p.controlMap));
+  if (p.pages && p.pages.length > 0) pages = JSON.parse(JSON.stringify(p.pages));
+}
 buildController();
 buildPalette();
 renderPageList();
+// Auto-save profiles periodically
+setInterval(saveProfiles, 30000);
 if (navigator.requestMIDIAccess) requestMIDI();
 </script>
 </body>
