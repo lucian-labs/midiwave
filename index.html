@@ -184,6 +184,7 @@ header h1 { font-size: 18px; font-weight: 600; }
 .btn-pad.active { border-color: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.2); }
 .btn-pad.mapped { border-color: var(--accent2); }
 .btn-pad.pad { aspect-ratio: 1; border-radius: 8px; background: #2a2a3a; }
+.encoder.browse-encoder { width: 60px; height: 60px; border-radius: 50%; border-width: 3px; font-size: 10px; }
 .btn-pad .cc-tag {
   position: absolute;
   top: 2px;
@@ -701,14 +702,21 @@ const DEFAULT_PROFILES = {
     },
     layout: {
       encoders: {
-        row1: { ccs: [74,71,76,77,93,18,19,16], channel: 1 },
+        row1: { ccs: [74,71,76,77], channel: 1, label: 'Knobs 1-4' },
+        row2: { ccs: [93,18,19,16], channel: 1, label: 'Knobs 5-8' },
       },
-      faders: { ccs: [14, 15], channel: 1 },
+      faders: { ccs: [85,86,87,88], channel: 1, label: 'Faders 1-4' },
       buttons: {},
       pads: {
-        bank_a: { ccs: [36,37,38,39,40,41,42,43], channel: 10, type: 'note' },
-        bank_b: { ccs: [44,45,46,47,48,49,50,51], channel: 10, type: 'note' },
+        bank_a: { ccs: [36,37,38,39,40,41,42,43], channel: 10, type: 'note', label: 'Pads Bank A' },
+        bank_b: { ccs: [44,45,46,47,48,49,50,51], channel: 10, type: 'note', label: 'Pads Bank B' },
       },
+      browse_encoder: { cc: 28, channel: 1, clickable: true, label: 'Browse/Step' },
+      touch_strips: {
+        pitch: { type: 'pitchbend', channel: 1 },
+        mod: { cc: 1, channel: 1 }
+      },
+      keyboard: { range: [36, 60], channel: 1, keys: 25 },
       transport: {}
     },
     relative: null,
@@ -897,7 +905,7 @@ function buildController() {
     const rows = Object.entries(layout.encoders);
     rows.forEach(([rowName, rowData], ri) => {
       const ccs = rowData.ccs || [];
-      const container = addSection(`Encoders ${rows.length > 1 ? 'Row ' + (ri+1) : ''}`, `enc-${rowName}`);
+      const container = addSection(rowData.label || `Encoders ${rows.length > 1 ? 'Row ' + (ri+1) : ''}`, `enc-${rowName}`);
       for (let i = 0; i < ccs.length; i++) {
         const key = `enc:${ri}:${i}`;
         const cc = ccs[i];
@@ -916,7 +924,7 @@ function buildController() {
 
   // Faders
   if (layout.faders && layout.faders.ccs && layout.faders.ccs.length > 0) {
-    const container = addSection('Faders', 'fader-row', 'height:100px;');
+    const container = addSection(layout.faders.label || 'Faders', 'fader-row', 'height:100px;');
     const ccs = layout.faders.ccs;
     for (let i = 0; i < ccs.length; i++) {
       const key = `fader:0:${i}`;
@@ -963,7 +971,7 @@ function buildController() {
     banks.forEach(([bankName, bankData], bi) => {
       const notes = bankData.notes || bankData.ccs || [];
       if (notes.length === 0) return;
-      const label = banks.length > 1 ? `Pads ${bankName.replace('bank_', 'Bank ').replace('_', ' ')}` : 'Pads';
+      const label = bankData.label || (banks.length > 1 ? `Pads ${bankName.replace('bank_', 'Bank ').replace('_', ' ')}` : 'Pads');
       const container = addSection(label, `pad-${bankName}`);
       for (let i = 0; i < notes.length; i++) {
         const key = `pad:${bi}:${i}`;
@@ -977,6 +985,50 @@ function buildController() {
         if (!controlMap[key]) controlMap[key] = { cc, ch: bankData.channel || 10, name: '', color: null, lastValue: null, type: bankData.type || 'cc' };
       }
     });
+    addDivider();
+  }
+
+  // Browse/Step encoder
+  if (layout.browse_encoder) {
+    const be = layout.browse_encoder;
+    const container = addSection(be.label || 'Browse Encoder', 'browse-enc');
+    const key = 'browse:0:0';
+    const el = document.createElement('div');
+    el.className = 'encoder browse-encoder';
+    el.dataset.key = key;
+    el.innerHTML = `<span>${controlMap[key]?.name || be.label || 'Browse'}</span><span class="val"></span>`;
+    el.onclick = () => selectControl(key);
+    container.appendChild(el);
+    if (!controlMap[key]) controlMap[key] = { cc: be.cc, ch: be.channel || 1, name: be.label || 'Browse', color: null, lastValue: null };
+    if (be.clickable) {
+      const clickKey = 'browse:0:click';
+      const clickEl = document.createElement('div');
+      clickEl.className = 'btn-pad';
+      clickEl.dataset.key = clickKey;
+      clickEl.innerHTML = `<span>Click</span><span class="cc-tag"></span>`;
+      clickEl.onclick = () => selectControl(clickKey);
+      container.appendChild(clickEl);
+      if (!controlMap[clickKey]) controlMap[clickKey] = { cc: be.click_cc || be.cc, ch: be.channel || 1, name: 'Browse Click', color: null, lastValue: null };
+    }
+    addDivider();
+  }
+
+  // Touch strips
+  if (layout.touch_strips) {
+    const container = addSection('Touch Strips', 'touch-strips');
+    for (const [name, strip] of Object.entries(layout.touch_strips)) {
+      const key = `strip:${name}:0`;
+      const col = document.createElement('div');
+      col.className = 'fader-col';
+      col.innerHTML = `
+        <div class="fader-track" data-key="${key}" onclick="selectControl('${key}')" style="height:60px;">
+          <div class="fader-fill" style="height:0%"></div>
+        </div>
+        <span class="fader-label">${name}</span>
+      `;
+      container.appendChild(col);
+      if (!controlMap[key]) controlMap[key] = { cc: strip.cc || null, ch: strip.channel || 1, name: name, color: null, lastValue: null, type: strip.type || 'cc' };
+    }
     addDivider();
   }
 
