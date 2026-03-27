@@ -1,0 +1,9 @@
+{
+  "name": "midiwave",
+  "version": "1.0.0",
+  "description": "Browser-based MIDI device workbench",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}
