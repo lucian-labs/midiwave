@@ -1608,7 +1608,13 @@ function onMIDIMessage(e) {
 
   let type = 'other', ch = '--', d1 = '--', d2 = '--';
 
-  if (data[0] >= 0xB0 && data[0] <= 0xBF) {
+  if (data[0] >= 0xE0 && data[0] <= 0xEF) {
+    type = 'pitch'; ch = (data[0] & 0x0F) + 1;
+    d1 = data[1] | (data[2] << 7); // 14-bit value
+    d2 = d1 - 8192; // centered: -8192 to +8191
+  } else if (data[0] >= 0xD0 && data[0] <= 0xDF) {
+    type = 'aft'; ch = (data[0] & 0x0F) + 1; d1 = data[1]; d2 = '--'; // channel aftertouch
+  } else if (data[0] >= 0xB0 && data[0] <= 0xBF) {
     type = 'cc'; ch = (data[0] & 0x0F) + 1; d1 = data[1]; d2 = data[2];
   } else if (data[0] >= 0x90 && data[0] <= 0x9F) {
     type = 'note'; ch = (data[0] & 0x0F) + 1; d1 = data[1]; d2 = data[2];
