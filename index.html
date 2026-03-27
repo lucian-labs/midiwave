@@ -183,6 +183,7 @@ header h1 { font-size: 18px; font-weight: 600; }
 .btn-pad:hover { border-color: var(--accent); }
 .btn-pad.active { border-color: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.2); }
 .btn-pad.mapped { border-color: var(--accent2); }
+.btn-pad.pad { aspect-ratio: 1; border-radius: 8px; background: #2a2a3a; }
 .btn-pad .cc-tag {
   position: absolute;
   top: 2px;
@@ -378,43 +379,8 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
       <button onclick="sendDAWMode(false)" class="danger btn-sm">DAW OFF</button>
     </div>
 
-    <!-- LCXL3 Visual -->
-    <div class="lcxl3">
-      <div class="lcxl3-label">Encoders Row 1</div>
-      <div class="row-8" id="enc-row1"></div>
-
-      <div class="lcxl3-label">Encoders Row 2</div>
-      <div class="row-8" id="enc-row2"></div>
-
-      <div class="lcxl3-label">Encoders Row 3</div>
-      <div class="row-8" id="enc-row3"></div>
-
-      <div class="section-divider"></div>
-
-      <div class="lcxl3-label">Faders</div>
-      <div class="row-8" id="fader-row" style="height:100px;"></div>
-
-      <div class="section-divider"></div>
-
-      <div class="lcxl3-label">Button Row 1 (Solo/Arm)</div>
-      <div class="row-8" id="btn-row1"></div>
-
-      <div class="lcxl3-label">Button Row 2 (Mute/Select)</div>
-      <div class="row-8" id="btn-row2"></div>
-
-      <div class="section-divider"></div>
-
-      <div class="transport" id="transport-row">
-        <div class="transport-btn" data-role="shift">SHIFT</div>
-        <div class="transport-btn" data-role="page-up">PG▲</div>
-        <div class="transport-btn" data-role="page-dn">PG▼</div>
-        <div class="transport-btn" data-role="track-l">◀TRK</div>
-        <div class="transport-btn" data-role="track-r">TRK▶</div>
-        <div class="transport-btn" data-role="mode">MODE</div>
-        <div class="transport-btn" data-role="play" style="color:var(--green);">PLAY</div>
-        <div class="transport-btn" data-role="rec" style="color:var(--red);">REC</div>
-      </div>
-    </div>
+    <!-- Dynamic Controller Visual (built by buildController()) -->
+    <div class="controller-hw" id="controller-hw"></div>
   </div>
 
   <!-- RIGHT: Sidebar -->
@@ -900,70 +866,166 @@ let learnAllIndex = 0;
 
 // ─── Build Controller UI ───
 function buildController() {
-  // Encoder rows
-  ['row1','row2','row3'].forEach((row, ri) => {
-    const container = document.getElementById(`enc-${row}`);
-    container.innerHTML = '';
-    for (let i = 0; i < 8; i++) {
-      const key = `enc:${ri}:${i}`;
-      const cc = LCXL3.encoders[row].ccs[i];
-      const el = document.createElement('div');
-      el.className = 'encoder';
-      el.dataset.key = key;
-      el.innerHTML = `<span>${cc}</span><span class="val"></span>`;
-      el.onclick = () => selectControl(key);
-      container.appendChild(el);
-      // Init controlMap
-      if (!controlMap[key]) controlMap[key] = { cc, ch: LCXL3.encoders[row].channel, name: '', color: null, lastValue: null };
-    }
-  });
+  syncLayoutAlias();
+  const layout = getLayout();
+  const hw = document.getElementById('controller-hw');
+  hw.innerHTML = '';
+  hw.className = `controller-hw profile-${activeProfileId}`;
 
-  // Faders
-  const faderContainer = document.getElementById('fader-row');
-  faderContainer.innerHTML = '';
-  for (let i = 0; i < 8; i++) {
-    const key = `fader:0:${i}`;
-    const cc = LCXL3.faders.ccs[i];
-    const col = document.createElement('div');
-    col.className = 'fader-col';
-    col.innerHTML = `
-      <div class="fader-track" data-key="${key}" onclick="selectControl('${key}')">
-        <div class="fader-fill" style="height:0%"></div>
-      </div>
-      <span class="fader-label">${cc}</span>
-    `;
-    faderContainer.appendChild(col);
-    if (!controlMap[key]) controlMap[key] = { cc, ch: LCXL3.faders.channel, name: '', color: null, lastValue: null };
+  // Helper: create a row section
+  function addSection(label, id, style) {
+    const lbl = document.createElement('div');
+    lbl.className = 'lcxl3-label';
+    lbl.textContent = label;
+    hw.appendChild(lbl);
+    const row = document.createElement('div');
+    row.className = 'row-8';
+    row.id = id;
+    if (style) row.style.cssText = style;
+    hw.appendChild(row);
+    return row;
   }
 
-  // Button rows
-  ['row1','row2'].forEach((row, ri) => {
-    const container = document.getElementById(`btn-${row}`);
-    container.innerHTML = '';
-    for (let i = 0; i < 8; i++) {
-      const key = `btn:${ri}:${i}`;
-      const cc = LCXL3.buttons[row].ccs[i];
-      const el = document.createElement('div');
-      el.className = 'btn-pad';
-      el.dataset.key = key;
-      el.innerHTML = `<span>${cc}</span><span class="cc-tag"></span>`;
-      el.onclick = () => selectControl(key);
-      container.appendChild(el);
-      if (!controlMap[key]) controlMap[key] = { cc, ch: LCXL3.buttons[row].channel, name: '', color: null, lastValue: null };
+  function addDivider() {
+    const d = document.createElement('div');
+    d.className = 'section-divider';
+    hw.appendChild(d);
+  }
+
+  // Encoders
+  if (layout.encoders) {
+    const rows = Object.entries(layout.encoders);
+    rows.forEach(([rowName, rowData], ri) => {
+      const ccs = rowData.ccs || [];
+      const container = addSection(`Encoders ${rows.length > 1 ? 'Row ' + (ri+1) : ''}`, `enc-${rowName}`);
+      for (let i = 0; i < ccs.length; i++) {
+        const key = `enc:${ri}:${i}`;
+        const cc = ccs[i];
+        const el = document.createElement('div');
+        el.className = 'encoder';
+        el.dataset.key = key;
+        const name = controlMap[key]?.name || '';
+        el.innerHTML = `<span>${name || cc}</span><span class="val"></span>`;
+        el.onclick = () => selectControl(key);
+        container.appendChild(el);
+        if (!controlMap[key]) controlMap[key] = { cc, ch: rowData.channel || 1, name: '', color: null, lastValue: null };
+      }
+    });
+    addDivider();
+  }
+
+  // Faders
+  if (layout.faders && layout.faders.ccs && layout.faders.ccs.length > 0) {
+    const container = addSection('Faders', 'fader-row', 'height:100px;');
+    const ccs = layout.faders.ccs;
+    for (let i = 0; i < ccs.length; i++) {
+      const key = `fader:0:${i}`;
+      const cc = ccs[i];
+      const col = document.createElement('div');
+      col.className = 'fader-col';
+      col.innerHTML = `
+        <div class="fader-track" data-key="${key}" onclick="selectControl('${key}')">
+          <div class="fader-fill" style="height:0%"></div>
+        </div>
+        <span class="fader-label">${controlMap[key]?.name || cc}</span>
+      `;
+      container.appendChild(col);
+      if (!controlMap[key]) controlMap[key] = { cc, ch: layout.faders.channel || 1, name: '', color: null, lastValue: null };
     }
-  });
+    addDivider();
+  }
+
+  // Buttons
+  if (layout.buttons && Object.keys(layout.buttons).length > 0) {
+    const rows = Object.entries(layout.buttons);
+    rows.forEach(([rowName, rowData], ri) => {
+      const ccs = rowData.ccs || [];
+      if (ccs.length === 0) return;
+      const container = addSection(`Buttons ${rows.length > 1 ? 'Row ' + (ri+1) : ''}`, `btn-${rowName}`);
+      for (let i = 0; i < ccs.length; i++) {
+        const key = `btn:${ri}:${i}`;
+        const cc = ccs[i];
+        const el = document.createElement('div');
+        el.className = 'btn-pad';
+        el.dataset.key = key;
+        el.innerHTML = `<span>${controlMap[key]?.name || cc}</span><span class="cc-tag"></span>`;
+        el.onclick = () => selectControl(key);
+        container.appendChild(el);
+        if (!controlMap[key]) controlMap[key] = { cc, ch: rowData.channel || 1, name: '', color: null, lastValue: null };
+      }
+    });
+    addDivider();
+  }
+
+  // Pads (MiniLab, Launchpad, etc.)
+  if (layout.pads) {
+    const banks = Object.entries(layout.pads);
+    banks.forEach(([bankName, bankData], bi) => {
+      const notes = bankData.notes || bankData.ccs || [];
+      if (notes.length === 0) return;
+      const label = banks.length > 1 ? `Pads ${bankName.replace('bank_', 'Bank ').replace('_', ' ')}` : 'Pads';
+      const container = addSection(label, `pad-${bankName}`);
+      for (let i = 0; i < notes.length; i++) {
+        const key = `pad:${bi}:${i}`;
+        const cc = notes[i];
+        const el = document.createElement('div');
+        el.className = 'btn-pad pad';
+        el.dataset.key = key;
+        el.innerHTML = `<span>${controlMap[key]?.name || (bankData.type === 'note' ? 'N' + cc : cc)}</span><span class="cc-tag"></span>`;
+        el.onclick = () => selectControl(key);
+        container.appendChild(el);
+        if (!controlMap[key]) controlMap[key] = { cc, ch: bankData.channel || 10, name: '', color: null, lastValue: null, type: bankData.type || 'cc' };
+      }
+    });
+    addDivider();
+  }
+
+  // Keyboard indicator
+  if (layout.keyboard) {
+    const lbl = document.createElement('div');
+    lbl.className = 'lcxl3-label';
+    lbl.textContent = `Keyboard: ${layout.keyboard.keys || 25} keys (${layout.keyboard.range ? 'MIDI ' + layout.keyboard.range[0] + '-' + layout.keyboard.range[1] : 'configurable'})`;
+    lbl.style.opacity = '0.6';
+    hw.appendChild(lbl);
+  }
 
   // Transport
-  const transportContainer = document.getElementById('transport-row');
-  transportContainer.querySelectorAll('.transport-btn').forEach(el => {
-    const role = el.dataset.role;
-    const key = `transport:${role}`;
-    el.onclick = () => selectControl(key);
-    if (!controlMap[key]) {
-      const known = LCXL3.transport[role];
-      controlMap[key] = { cc: known ? known.cc : null, ch: known ? known.channel : null, name: role, color: null, lastValue: null };
+  if (layout.transport && Object.keys(layout.transport).length > 0) {
+    const transport = document.createElement('div');
+    transport.className = 'transport';
+    transport.id = 'transport-row';
+    const roles = Object.keys(layout.transport).filter(r => layout.transport[r].cc != null);
+    if (roles.length > 0) {
+      for (const role of roles) {
+        const btn = document.createElement('div');
+        btn.className = 'transport-btn';
+        btn.dataset.role = role;
+        btn.textContent = role.toUpperCase().replace(/_/g, ' ');
+        if (role === 'play') btn.style.color = 'var(--green)';
+        if (role === 'rec') btn.style.color = 'var(--red)';
+        transport.appendChild(btn);
+      }
+      hw.appendChild(transport);
+      transport.querySelectorAll('.transport-btn').forEach(el => {
+        const role = el.dataset.role;
+        const key = `transport:${role}`;
+        el.onclick = () => selectControl(key);
+        const known = layout.transport[role];
+        if (!controlMap[key]) {
+          controlMap[key] = { cc: known?.cc || null, ch: known?.channel || null, name: role, color: null, lastValue: null };
+        }
+      });
     }
-  });
+  }
+
+  // Device title
+  const profile = profiles[activeProfileId];
+  if (profile) {
+    const title = document.createElement('div');
+    title.style.cssText = 'text-align:center;font-size:10px;color:var(--text-dim);margin-top:8px;';
+    title.textContent = profile.name;
+    hw.appendChild(title);
+  }
 }
 
 // ─── Select Control ───
@@ -1314,15 +1376,14 @@ function toggleLearnAll() {
   document.getElementById('btn-learn-all').classList.toggle('active', learnAllMode);
 
   if (learnAllMode) {
-    // Build queue: all controls in order
-    learnAllQueue = [];
-    ['enc:0','enc:1','enc:2'].forEach(prefix => {
-      for (let i = 0; i < 8; i++) learnAllQueue.push(`${prefix}:${i}`);
+    // Build queue dynamically from all controls in the current controlMap
+    learnAllQueue = Object.keys(controlMap).sort((a, b) => {
+      // Sort: encoders, faders, pads, buttons, transport
+      const order = { enc: 0, fader: 1, pad: 2, btn: 3, transport: 4 };
+      const aType = a.split(':')[0], bType = b.split(':')[0];
+      if (order[aType] !== order[bType]) return (order[aType] || 5) - (order[bType] || 5);
+      return a.localeCompare(b);
     });
-    for (let i = 0; i < 8; i++) learnAllQueue.push(`fader:0:${i}`);
-    for (let i = 0; i < 8; i++) learnAllQueue.push(`btn:0:${i}`);
-    for (let i = 0; i < 8; i++) learnAllQueue.push(`btn:1:${i}`);
-    ['play','rec','shift','mode','page-up','page-dn','track-l','track-r'].forEach(r => learnAllQueue.push(`transport:${r}`));
 
     learnAllIndex = 0;
     highlightLearnTarget();
@@ -1473,31 +1534,36 @@ function onMIDIMessage(e) {
   if (monitorEntries.length > MAX_LOG) monitorEntries.shift();
   renderMonitor();
 
-  // Single-control learn mode
-  if (learnSingleKey && type === 'cc') {
+  // Single-control learn mode (CC or NoteOn)
+  if (learnSingleKey && (type === 'cc' || (type === 'note' && d2 > 0))) {
     controlMap[learnSingleKey].cc = d1;
     controlMap[learnSingleKey].ch = ch;
+    controlMap[learnSingleKey].type = type === 'note' ? 'note' : 'cc';
     updateProfileLayout(learnSingleKey, 'cc', d1);
     updateProfileLayout(learnSingleKey, 'ch', ch);
     document.getElementById('ctrl-cc').value = d1;
     document.getElementById('ctrl-ch').value = ch;
-    document.getElementById('selected-info').textContent = `Learned: ${learnSingleKey} → CC ${d1} Ch ${ch}`;
-    console.log(`[midiwave] Learned: ${learnSingleKey} → CC ${d1} Ch ${ch}`);
+    document.getElementById('selected-info').textContent = `Learned: ${learnSingleKey} → ${type.toUpperCase()} ${d1} Ch ${ch}`;
+    console.log(`[midiwave] Learned: ${learnSingleKey} → ${type.toUpperCase()} ${d1} Ch ${ch}`);
     learnSingleKey = null;
   }
 
-  // Map incoming to visual controls
+  // Map incoming to visual controls (CC and NoteOn)
   if (type === 'cc') {
     mapIncomingCC(ch, d1, d2);
   }
+  if (type === 'note') {
+    mapIncomingNote(ch, d1, d2);
+  }
 
-  // Learn All mode
-  if (learnAllMode && type === 'cc' && d2 > 0) {
+  // Learn All mode (CC or NoteOn)
+  if (learnAllMode && (type === 'cc' || type === 'note') && d2 > 0) {
     const key = learnAllQueue[learnAllIndex];
     if (key) {
       controlMap[key].cc = d1;
       controlMap[key].ch = ch;
-      console.log(`[midiwave] Learned: ${key} → CC${d1} Ch${ch}`);
+      controlMap[key].type = type === 'note' ? 'note' : 'cc';
+      console.log(`[midiwave] Learned: ${key} → ${type.toUpperCase()} ${d1} Ch${ch}`);
       updateControlLabel(key);
       learnAllIndex++;
       highlightLearnTarget();
@@ -1550,6 +1616,36 @@ function mapIncomingCC(ch, cc, val) {
   // If no match and it's an unknown CC, log it for discovery
   if (!matched) {
     console.log(`[midiwave] Unknown CC: ch${ch} cc${cc} val${val} — not mapped to any control`);
+  }
+}
+
+// Map incoming NoteOn/Off to pad controls
+function mapIncomingNote(ch, note, vel) {
+  let matched = false;
+  for (const [key, ctrl] of Object.entries(controlMap)) {
+    if (ctrl.type === 'note' && ctrl.ch === ch && ctrl.cc === note) {
+      ctrl.lastValue = vel;
+      updateControlVisual(key);
+
+      const el = document.querySelector(`[data-key="${key}"]`);
+      if (el) {
+        if (vel > 0) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
+        }
+      }
+
+      if (key === selectedKey) {
+        updateSelectedInfo(ctrl);
+      }
+
+      matched = true;
+      break;
+    }
+  }
+  if (!matched && vel > 0) {
+    console.log(`[midiwave] Unknown Note: ch${ch} note${note} vel${vel} — not mapped`);
   }
 }
 
