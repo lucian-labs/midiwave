@@ -740,9 +740,24 @@ function loadProfiles() {
   if (stored) {
     try { profiles = JSON.parse(stored); } catch(e) { profiles = {}; }
   }
-  // Ensure defaults exist
+  // Ensure defaults exist AND always update layout/led/screen from defaults
+  // (user's controlMap, pages, and names are preserved, but hardware layout stays current)
   for (const [id, def] of Object.entries(DEFAULT_PROFILES)) {
-    if (!profiles[id]) profiles[id] = JSON.parse(JSON.stringify(def));
+    if (!profiles[id]) {
+      profiles[id] = JSON.parse(JSON.stringify(def));
+    } else {
+      // Merge: update hardware-defined fields, keep user-defined fields
+      const fresh = JSON.parse(JSON.stringify(def));
+      profiles[id].layout = fresh.layout;
+      profiles[id].led = fresh.led;
+      profiles[id].screen = fresh.screen;
+      profiles[id].relative = fresh.relative;
+      profiles[id].color_palette = fresh.color_palette;
+      profiles[id].identity = fresh.identity;
+      profiles[id].daw_mode = fresh.daw_mode;
+      profiles[id].led_method = fresh.led_method;
+      // Keep user's controlMap, pages, notes
+    }
   }
   activeProfileId = localStorage.getItem('midiwave-active-profile') || 'lcxl3';
   if (!profiles[activeProfileId]) activeProfileId = Object.keys(profiles)[0];
