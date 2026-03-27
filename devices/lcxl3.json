@@ -1,0 +1,113 @@
+{
+  "name": "Launch Control XL MK3",
+  "id": "lcxl3",
+  "manufacturer": "Novation",
+  "identity": {
+    "manufacturer_id": "00 20 29",
+    "family": "0x48",
+    "sysex_header": [240, 0, 32, 41, 2, 21]
+  },
+  "port_match": ["LCXL3", "Launch Control XL"],
+  "daw_mode": {
+    "enter": [240, 0, 32, 41, 2, 21, 2, 127, 247],
+    "exit": [240, 0, 32, 41, 2, 21, 2, 0, 247]
+  },
+  "led": {
+    "method": "cc_channel",
+    "channel": 1,
+    "palette_size": 128,
+    "flash_channels": {
+      "solid": 1,
+      "slow_flash": 2,
+      "fast_flash": 3,
+      "white": 4
+    },
+    "off_value": 0
+  },
+  "screen": {
+    "method": "sysex_fields",
+    "target": 53,
+    "arrangements": {
+      "3row": { "arrangement": 2, "fields": { "top": 0, "middle": 1, "bottom": 2 } },
+      "2row_top_mid": { "arrangement": 3, "fields": { "top": 0, "middle": 1 } },
+      "1row_center": { "arrangement": 1, "fields": { "center": 0 } }
+    },
+    "temp_display": {
+      "range": [5, 36],
+      "arrangement": 1,
+      "name_field": 0,
+      "value_field": 1,
+      "auto_on_change": true,
+      "auto_on_touch": true
+    },
+    "note": "Text only visible after pressing Mode button (DAW overlay hides custom text). Re-send continuously to keep visible."
+  },
+  "layout": {
+    "encoders": {
+      "row1": { "ccs": [13, 14, 15, 16, 17, 18, 19, 20], "channel": 16, "has_led": true, "led_ccs": [13, 14, 15, 16, 17, 18, 19, 20] },
+      "row2": { "ccs": [21, 22, 23, 24, 25, 26, 27, 28], "channel": 16, "has_led": true, "led_ccs": [21, 22, 23, 24, 25, 26, 27, 28] },
+      "row3": { "ccs": [29, 30, 31, 32, 33, 34, 35, 36], "channel": 16, "has_led": true, "led_ccs": [29, 30, 31, 32, 33, 34, 35, 36] }
+    },
+    "faders": {
+      "ccs": [5, 6, 7, 8, 9, 10, 11, 12],
+      "channel": 16,
+      "has_led": false
+    },
+    "buttons": {
+      "row1": { "ccs": [37, 38, 39, 40, 41, 42, 43, 44], "channel": 1, "has_led": true },
+      "row2": { "ccs": [45, 46, 47, 48, 49, 50, 51, 52], "channel": 1, "has_led": true }
+    },
+    "transport": {
+      "play": { "cc": 116, "channel": 1, "has_led": true },
+      "rec": { "cc": 118, "channel": 1, "has_led": true },
+      "page_up": { "cc": 106, "channel": 1 },
+      "page_down": { "cc": 107, "channel": 1 }
+    }
+  },
+  "relative_encoders": {
+    "enable_channel": 7,
+    "rows": {
+      "row1": { "enable_cc": 69, "offset": 64 },
+      "row2": { "enable_cc": 72, "offset": 64 },
+      "row3": { "enable_cc": 73, "offset": 64 }
+    },
+    "cc_shift": 64,
+    "note": "When relative mode is enabled, data CCs shift by +64. LED CCs do NOT shift."
+  },
+  "color_palette": [
+    "#000000","#616161","#b3b3b3","#ffffff",
+    "#ffb3b3","#ff6161","#dd6161","#b36161",
+    "#61b361","#61b38c","#618cd5","#6161ff",
+    "#61b3b3","#8c61f3","#ccb3c2","#8c7681",
+    "#616161","#ffb361","#dd8c61","#b37661",
+    "#ffeea1","#ffff61","#dddd61","#b3b361",
+    "#ff6161","#f3ffa1","#eefc61","#ccff61",
+    "#76dd61","#61ffcc","#61e9ff","#61a1ff",
+    "#ddffa1","#c2ff61","#a1dd61","#81b361",
+    "#c2ffb3","#61ff61","#61dd61","#61b361",
+    "#8c61ff","#cc61fc","#ee8cdd","#a17661",
+    "#ffa161","#ddf961","#d5ff8c","#61ff61",
+    "#c2ffc2","#61ff8c","#61dd76","#61b36b",
+    "#c2ffcc","#61ffcc","#61dda1","#61b381",
+    "#b3ffa1","#b3ffa1","#b3fff6","#616e7c",
+    "#a1c2f6","#d5c2f9","#f98cff","#ff61cc",
+    "#c2fff3","#61ffe9","#61ddc2","#61b396",
+    "#c2f3ff","#61eeff","#61c7dd","#61a1b3",
+    "#ffc261","#f3ee61","#e4ff61","#ddcc61",
+    "#b3a161","#61ba76","#76c28c","#8181a1",
+    "#c2ddff","#61c7ff","#61a1dd","#6181b3",
+    "#a18cff","#6161ff","#6161dd","#6161b3",
+    "#818ccc","#ccaa81","#dd6161","#f9b3a1",
+    "#f9ba76","#fff38c","#e9f9a1","#d5ee76",
+    "#ccb3ff","#a161ff","#8161dd","#7661b3",
+    "#ffb3ff","#ff61ff","#dd61dd","#b361b3",
+    "#8181a1","#aa6161","#81f661","#61b361",
+    "#f3ee61","#b3b3b3","#eec261","#c27661",
+    "#ffb3d5","#ff61c2","#dd61a1","#b3618c",
+    "#ff7661","#e9b361","#ddc261","#a1a161",
+    "#e96161","#aa6161","#81f661","#61b361",
+    "#f3ee61","#b3a161","#eec261","#c27661"
+  ],
+  "notes": "Reverse-engineered March 2026. LEDs are CC-based (ch1 val=palette index), NOT SysEx RGB via Web MIDI. Screen works via SysEx but DAW mode overlay hides it.",
+  "_midiwave_version": "1.0"
+}

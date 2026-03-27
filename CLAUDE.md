@@ -1,10 +1,45 @@
-# midi-lab — Interactive MIDI Device Workbench
+# midiwave — Universal MIDI Device Workbench
 
 ## What This Is
 
-A browser-based tool for hands-on exploration of MIDI devices — specifically targeting Novation Launch Control XL3 (LCXL3) DAW mode, but useful for any MIDI controller. The goal is rapid iteration: type text and see it on the OLED, pick a color and see it on a button LED, monitor incoming CCs in real time, and export working configs for use in real apps.
+A browser-based tool for hands-on exploration of ANY MIDI controller. Connect a device, discover its capabilities, map controls, set LED colors, write to screens, and export configs for use in real apps.
 
-This exists because the LCXL3's DAW mode protocol (SysEx for RGB LEDs, OLED screen, relative encoders) is underdocumented and requires live experimentation to get right.
+Currently supports: **Novation Launch Control XL MK3** (fully mapped), with a plugin architecture for adding any MIDI device.
+
+## Adding a New Device (for AI agents and humans)
+
+When someone says "I have a [device], add support for it":
+
+### Step 1: Research
+1. Search for the device's **MIDI programmer's reference** or **MIDI implementation chart**
+2. Look for: CC assignments, LED control method (CC/SysEx/NoteOn), screen protocol, identity response, port names
+3. Check forums, GitHub repos, and manufacturer docs
+
+### Step 2: Create device profile
+1. Create `devices/<device-id>.json` following the schema in `devices/SCHEMA.md`
+2. Fill in everything you can from documentation
+3. Mark unknowns as `null` — the user will discover them interactively
+
+### Step 3: Register in the app
+1. Add the device to `DEFAULT_PROFILES` in `index.html` (or load from JSON)
+2. The profile needs: `name`, `id`, `layout` (encoders/faders/buttons/pads with CCs), `led` (method + channel), `port_match` (for auto-detect)
+
+### Step 4: Test with hardware
+1. User loads the profile from the device dropdown
+2. "Learn All" mode: move every control to confirm CC assignments
+3. "Discover" mode: probe LED methods, screen protocols
+4. Update the profile JSON with confirmed values
+
+### Device Driver Abstraction
+All hardware-specific communication goes through these methods, dispatched by `led.method` and `screen.method` in the profile:
+
+- **LED**: `deviceSendLED(cc, colorValue)` — routes to CC, SysEx RGB, or NoteOn based on profile
+- **Screen**: `deviceSendScreen(rows)` — routes to SysEx fields, CC values, or no-op
+- **Identity**: `deviceProbeIdentity()` — sends universal SysEx identity request
+- **DAW mode**: `deviceEnterDAW()` / `deviceExitDAW()` — sends profile-specific SysEx
+
+### Key Principle
+The device profile JSON is the **single source of truth**. The app reads it and adapts. No hardcoded device-specific logic in the main code — everything dispatches through the profile.
 
 ## Architecture
 
