@@ -641,7 +641,7 @@ const MAX_LOG = 500;
 
 // LCXL3 default CC mapping (DAW mode)
 // ─── Device Profiles ───
-// Profiles persist to localStorage as JSON. Each profile stores:
+// Profiles persist to server-side JSON file. Each profile stores:
 // - hardware layout (encoders, faders, buttons, transport)
 // - controlMap (cc assignments, names, colors, values)
 // - pages (LED presets, screen text, encoder modes)
@@ -735,20 +735,25 @@ const DEFAULT_PROFILES = {
 let profiles = {};
 let activeProfileId = null;
 
-function loadProfiles() {
-  const stored = localStorage.getItem('midiwave-profiles');
-  if (stored) {
-    try { profiles = JSON.parse(stored); } catch(e) { profiles = {}; }
+async function loadProfiles() {
+  // Try loading from server (file-based persistence)
+  let stored = null;
+  try {
+    const res = await fetch('/profiles');
+    if (res.ok) stored = await res.json();
+  } catch(e) {}
+
+  if (stored && stored.profiles) {
+    profiles = stored.profiles;
+    activeProfileId = stored.activeProfile || 'lcxl3';
   }
+
   // Ensure defaults exist AND always update layout/led/screen from defaults
-  // (user's controlMap, pages, and names are preserved, but hardware layout stays current)
   for (const [id, def] of Object.entries(DEFAULT_PROFILES)) {
     if (!profiles[id]) {
       profiles[id] = JSON.parse(JSON.stringify(def));
     } else {
-      // Merge: update hardware-defined fields, keep user-defined fields
       const fresh = JSON.parse(JSON.stringify(def));
-      // If layout changed, clear stale controlMap so it rebuilds from new layout
       const layoutChanged = JSON.stringify(profiles[id].layout) !== JSON.stringify(fresh.layout);
       profiles[id].layout = fresh.layout;
       profiles[id].led = fresh.led;
@@ -764,7 +769,6 @@ function loadProfiles() {
       }
     }
   }
-  activeProfileId = localStorage.getItem('midiwave-active-profile') || 'lcxl3';
   if (!profiles[activeProfileId]) activeProfileId = Object.keys(profiles)[0];
   console.log(`[midiwave] Loaded ${Object.keys(profiles).length} profiles: ${Object.keys(profiles).join(', ')} (active: ${activeProfileId})`);
 }
@@ -776,8 +780,12 @@ function saveProfiles() {
     p.controlMap = JSON.parse(JSON.stringify(controlMap));
     p.pages = JSON.parse(JSON.stringify(pages));
   }
-  localStorage.setItem('midiwave-profiles', JSON.stringify(profiles));
-  localStorage.setItem('midiwave-active-profile', activeProfileId);
+  // Save to server (file-based)
+  fetch('/profiles', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ profiles, activeProfile: activeProfileId })
+  }).catch(err => console.error('[midiwave] Failed to save profiles:', err.message));
   console.log(`[midiwave] Profiles saved (${Object.keys(profiles).length} profiles, active: ${activeProfileId})`);
 }
 
@@ -807,7 +815,7 @@ function switchProfile(id) {
   buildController();
   buildPalette();
   renderPageList();
-  localStorage.setItem('midiwave-active-profile', id);
+  saveProfiles();
   console.log(`[midiwave] Switched to profile: ${p.name}`);
 }
 
@@ -3013,21 +3021,23 @@ function switchTab(el, tabId) {
 }
 
 // ─── Init ───
-loadProfiles();
-renderProfileDropdown();
-syncLayoutAlias();
-// Restore controlMap/pages from active profile
-if (profiles[activeProfileId]) {
-  const p = profiles[activeProfileId];
-  if (p.controlMap && Object.keys(p.controlMap).length > 0) controlMap = JSON.parse(JSON.stringify(p.controlMap));
-  if (p.pages && p.pages.length > 0) pages = JSON.parse(JSON.stringify(p.pages));
-}
-buildController();
-buildPalette();
-renderPageList();
-// Auto-save profiles periodically
-setInterval(saveProfiles, 30000);
-if (navigator.requestMIDIAccess) requestMIDI();
+(async function init() {
+  await loadProfiles();
+  renderProfileDropdown();
+  syncLayoutAlias();
+  // Restore controlMap/pages from active profile
+  if (profiles[activeProfileId]) {
+    const p = profiles[activeProfileId];
+    if (p.controlMap && Object.keys(p.controlMap).length > 0) controlMap = JSON.parse(JSON.stringify(p.controlMap));
+    if (p.pages && p.pages.length > 0) pages = JSON.parse(JSON.stringify(p.pages));
+  }
+  buildController();
+  buildPalette();
+  renderPageList();
+  // Auto-save profiles periodically
+  setInterval(saveProfiles, 30000);
+  if (navigator.requestMIDIAccess) requestMIDI();
+})();
 </script>
 </body>
 </html>
