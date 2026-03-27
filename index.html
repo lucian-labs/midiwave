@@ -748,6 +748,8 @@ function loadProfiles() {
     } else {
       // Merge: update hardware-defined fields, keep user-defined fields
       const fresh = JSON.parse(JSON.stringify(def));
+      // If layout changed, clear stale controlMap so it rebuilds from new layout
+      const layoutChanged = JSON.stringify(profiles[id].layout) !== JSON.stringify(fresh.layout);
       profiles[id].layout = fresh.layout;
       profiles[id].led = fresh.led;
       profiles[id].screen = fresh.screen;
@@ -756,7 +758,10 @@ function loadProfiles() {
       profiles[id].identity = fresh.identity;
       profiles[id].daw_mode = fresh.daw_mode;
       profiles[id].led_method = fresh.led_method;
-      // Keep user's controlMap, pages, notes
+      if (layoutChanged) {
+        profiles[id].controlMap = {};
+        console.log(`[midiwave] Layout changed for ${id} — controlMap reset`);
+      }
     }
   }
   activeProfileId = localStorage.getItem('midiwave-active-profile') || 'lcxl3';
