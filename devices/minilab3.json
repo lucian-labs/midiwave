@@ -1,0 +1,122 @@
+{
+  "name": "Arturia MiniLab 3",
+  "id": "minilab3",
+  "manufacturer": "Arturia",
+  "identity": {
+    "manufacturer_id": "00 20 6B",
+    "family": "0x42",
+    "sysex_header": [240, 0, 32, 107, 127, 66]
+  },
+  "port_match": ["Minilab3", "MiniLab 3", "Minilab"],
+  "daw_mode": null,
+  "led": {
+    "method": "sysex_rgb",
+    "sysex_format": {
+      "prefix": [240, 0, 32, 107, 127, 66, 2, 0, 22],
+      "suffix": [247],
+      "note": "F0 00 20 6B 7F 42 02 <mode> 16 <pad_id> <R> <G> <B> F7"
+    },
+    "modes": {
+      "user": 0,
+      "arturia": 1,
+      "daw": 2
+    },
+    "pad_ids": {
+      "pads_1_8_temp": [4, 5, 6, 7, 8, 9, 10, 11],
+      "pads_9_16_temp": [20, 21, 22, 23, 24, 25, 26, 27],
+      "pads_1_8_persist": [52, 53, 54, 55, 56, 57, 58, 59],
+      "pads_9_16_persist": [68, 69, 70, 71, 72, 73, 74, 75],
+      "shift": 0,
+      "oct_down": 1,
+      "hold": 2,
+      "oct_up": 3
+    },
+    "off_value": [0, 0, 0],
+    "palette_size": null,
+    "note": "RGB LEDs via SysEx. Values 0x00-0x7F per channel (7-bit). Default grey ~0x19."
+  },
+  "screen": {
+    "method": "sysex_arturia",
+    "port": "ALV",
+    "port_match": ["ALV"],
+    "init_sysex": [240, 0, 32, 107, 127, 66, 2, 2, 64, 106, 33, 247],
+    "text_prefix": [240, 0, 32, 107, 127, 66, 4, 2, 96, 31, 7, 1],
+    "text_suffix": [247],
+    "pictograms": {
+      "none": 0,
+      "heart": 1,
+      "play": 2,
+      "record": 3,
+      "armed": 4,
+      "shift": 5
+    },
+    "control_viz": {
+      "knob": 3,
+      "fader": 4,
+      "pad": 5,
+      "autohide_yes": 2,
+      "autohide_no": 0
+    },
+    "note": "OLED screen controlled via SysEx on the ALV MIDI port. Requires init SysEx first."
+  },
+  "layout": {
+    "encoders": {
+      "row1": {
+        "ccs": [74, 71, 76, 77, 93, 18, 19, 16],
+        "channel": 1,
+        "has_led": false,
+        "default_mode": "relative",
+        "note": "Factory defaults. Customizable via MIDI Control Center."
+      }
+    },
+    "faders": {
+      "ccs": [14, 15],
+      "channel": 1,
+      "has_led": false,
+      "note": "Touch strips (pitch bend + modulation by default, can be assigned to CC)"
+    },
+    "pads": {
+      "bank_a": {
+        "notes": [36, 37, 38, 39, 40, 41, 42, 43],
+        "channel": 10,
+        "has_led": true,
+        "type": "note",
+        "velocity_sensitive": true,
+        "pressure_sensitive": true
+      },
+      "bank_b": {
+        "notes": [44, 45, 46, 47, 48, 49, 50, 51],
+        "channel": 10,
+        "has_led": true,
+        "type": "note",
+        "velocity_sensitive": true,
+        "pressure_sensitive": true
+      }
+    },
+    "buttons": {},
+    "transport": {
+      "note": "Transport via Shift+Pads in DAW mode (MCU protocol on MCU port)"
+    },
+    "keyboard": {
+      "range": [48, 72],
+      "channel": 1,
+      "keys": 25,
+      "aftertouch": false,
+      "note": "25 slim keys, velocity-sensitive, no aftertouch"
+    }
+  },
+  "relative_encoders": {
+    "default_mode": "relative_1",
+    "modes": ["absolute", "relative_1", "relative_2", "relative_3"],
+    "note": "Default is Relative 1 (binary offset). Configurable via MIDI Control Center."
+  },
+  "midi_ports": {
+    "midi": { "name": "Minilab3 MIDI", "purpose": "Standard MIDI I/O (keys, encoders, pads)" },
+    "din_thru": { "name": "Minilab3 DIN THRU", "purpose": "Passes MIDI to 5-pin DIN out" },
+    "mcu": { "name": "Minilab3 MCU", "purpose": "Mackie Control Universal protocol" },
+    "alv": { "name": "Minilab3 ALV", "purpose": "Analog Lab V / screen SysEx" }
+  },
+  "color_palette": null,
+  "notes": "Researched March 2026. RGB LEDs are SysEx-based (not CC). Screen uses separate ALV port. Encoder CCs are factory defaults — user may have customized via MIDI Control Center. Pads send NoteOn by default. 4 MIDI ports on Windows (requires Arturia driver).",
+  "_midiwave_version": "1.0"
+}
