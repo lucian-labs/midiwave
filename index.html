@@ -702,8 +702,8 @@ const DEFAULT_PROFILES = {
     },
     layout: {
       encoders: {
-        row1: { ccs: [74,71,76,77], channel: 1, label: 'Knobs 1-4' },
-        row2: { ccs: [93,18,19,16], channel: 1, label: 'Knobs 5-8' },
+        row1: { ccs: [86,87,89,90], channel: 1, label: 'Knobs 1-4' },
+        row2: { ccs: [110,111,116,117], channel: 1, label: 'Knobs 5-8' },
       },
       faders: { ccs: [14,15,30,31], channel: 1, label: 'Faders 1-4' },
       buttons: {},
@@ -1538,26 +1538,47 @@ function populateDevices() {
     outSel.appendChild(opt);
   }
 
-  // Restore or auto-select
-  if (prevIn && [...inSel.options].some(o => o.value === prevIn)) {
-    inSel.value = prevIn;
-  } else {
-    for (const o of inSel.options) {
-      if (o.textContent.includes('MIDIIN2') && o.textContent.includes('Launch Control')) { inSel.value = o.value; break; }
+  // Restore saved ports for this profile, or auto-detect via port_match
+  const profile = profiles[activeProfileId];
+  const savedIn = profile?.selectedInput;
+  const savedOut = profile?.selectedOutput;
+  const portMatch = profile?.port_match || [];
+
+  function matchPort(options, savedName, portPatterns) {
+    // First: try saved port name
+    if (savedName) {
+      for (const o of options) {
+        if (o.textContent === savedName) return o.value;
+      }
     }
-  }
-  if (prevOut && [...outSel.options].some(o => o.value === prevOut)) {
-    outSel.value = prevOut;
-  } else {
-    for (const o of outSel.options) {
-      if (o.textContent.includes('MIDIOUT2') && o.textContent.includes('Launch Control')) { outSel.value = o.value; break; }
+    // Second: auto-detect via port_match patterns
+    for (const o of options) {
+      for (const pattern of portPatterns) {
+        if (o.textContent.includes(pattern)) return o.value;
+      }
     }
+    return '';
   }
 
-  inSel.onchange = connectInput;
-  outSel.onchange = connectOutput;
+  inSel.value = matchPort(inSel.options, savedIn, portMatch) || prevIn || '';
+  outSel.value = matchPort(outSel.options, savedOut, portMatch) || prevOut || '';
+
+  inSel.onchange = () => { connectInput(); persistSelectedPorts(); };
+  outSel.onchange = () => { connectOutput(); persistSelectedPorts(); };
   connectInput();
   connectOutput();
+}
+
+function persistSelectedPorts() {
+  const profile = profiles[activeProfileId];
+  if (!profile) return;
+  const inSel = document.getElementById('midi-in');
+  const outSel = document.getElementById('midi-out');
+  const inOpt = inSel.options[inSel.selectedIndex];
+  const outOpt = outSel.options[outSel.selectedIndex];
+  profile.selectedInput = inOpt ? inOpt.textContent : null;
+  profile.selectedOutput = outOpt ? outOpt.textContent : null;
+  saveProfiles();
 }
 
 function connectInput() {
