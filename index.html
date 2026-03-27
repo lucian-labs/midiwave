@@ -761,6 +761,7 @@ function loadProfiles() {
   }
   activeProfileId = localStorage.getItem('midiwave-active-profile') || 'lcxl3';
   if (!profiles[activeProfileId]) activeProfileId = Object.keys(profiles)[0];
+  console.log(`[midiwave] Loaded ${Object.keys(profiles).length} profiles: ${Object.keys(profiles).join(', ')} (active: ${activeProfileId})`);
 }
 
 function saveProfiles() {
