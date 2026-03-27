@@ -3055,8 +3055,8 @@ function switchTab(el, tabId) {
   buildController();
   buildPalette();
   renderPageList();
-  // Auto-save profiles periodically
-  setInterval(saveProfiles, 30000);
+  // Save on page unload instead of polling
+  window.addEventListener('beforeunload', () => saveProfiles());
   if (navigator.requestMIDIAccess) requestMIDI();
 })();
 </script>
