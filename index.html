@@ -698,9 +698,12 @@ const DEFAULT_PROFILES = {
     identity: { family: '0x42', manufacturer: '00 20 6B' },
     led: {
       method: 'sysex_rgb',
-      sysex_prefix: [0xF0, 0x00, 0x20, 0x6B, 0x7F, 0x42, 0x02, 0x00, 0x16],
+      sysex_prefix: [0xF0, 0x00, 0x20, 0x6B, 0x7F, 0x42, 0x02, 0x02, 0x16],
       pad_ids: [0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
                 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B],
+      // pad_ids indexed by pad note: bank A notes 36-43 → pad_ids[0-7], bank B notes 44-51 → pad_ids[8-15]
+      note_to_pad: { 36:0x04, 37:0x05, 38:0x06, 39:0x07, 40:0x08, 41:0x09, 42:0x0A, 43:0x0B,
+                     44:0x14, 45:0x15, 46:0x16, 47:0x17, 48:0x18, 49:0x19, 50:0x1A, 51:0x1B },
       off_value: 0,
       palette_size: null
     },
@@ -1279,7 +1282,9 @@ function resolveRGB(colorVal, profile) {
 function buildSysexRGB(led, profile, cc, r, g, b) {
   if (led.sysex_prefix) {
     // Arturia-style: prefix + pad_id + RGB + F7
-    return new Uint8Array([...led.sysex_prefix, cc, r, g, b, 0xF7]);
+    // Map note number to pad_id if note_to_pad exists
+    const padId = led.note_to_pad?.[cc] ?? cc;
+    return new Uint8Array([...led.sysex_prefix, padId, r, g, b, 0xF7]);
   }
   // Generic: header + 01 + cc + RGB + F7
   const header = profile.identity?.sysex_header || SYSEX_HEADER;
@@ -1302,6 +1307,7 @@ function sendLED(cc, colorVal, flashMode) {
       break;
     }
     case 'sysex_rgb': {
+      ensureDeviceInit(profile);
       const [r, g, b] = resolveRGB(colorVal, profile);
       send(buildSysexRGB(led, profile, cc, r, g, b));
       break;
@@ -1316,6 +1322,17 @@ function sendLED(cc, colorVal, flashMode) {
     default:
       // No LED support
       break;
+  }
+}
+
+// Send device init SysEx once per profile session (enables LED/screen communication)
+function ensureDeviceInit(profile) {
+  if (profile._deviceInited) return;
+  const init = profile?.screen?.init || profile?.led?.init;
+  if (init && activeOutput) {
+    activeOutput.send(new Uint8Array(init));
+    console.log('[midiwave] Sent device init SysEx');
+    profile._deviceInited = true;
   }
 }
 
@@ -1338,6 +1355,7 @@ function deviceSendLEDToPort(port, cc, colorVal, flashMode) {
       break;
     }
     case 'sysex_rgb': {
+      ensureDeviceInit(profile);
       const [r, g, b] = resolveRGB(colorVal, profile);
       port.send(buildSysexRGB(led, profile, cc, r, g, b));
       break;
@@ -1905,11 +1923,30 @@ function sendScreen() {
   const mid = document.getElementById('screen-line2').value || '';
   const bot = document.getElementById('screen-line3').value || '';
 
-  const ports = getAllLCXLPorts();
+  const ports = getScreenPorts();
   for (const p of ports) {
     sendScreen3Row(p.port, top, mid, bot);
     console.log(`[midiwave] SCREEN → ${p.name}: "${top}" / "${mid}" / "${bot}"`);
   }
+}
+
+function getScreenPorts() {
+  const profile = profiles[activeProfileId];
+  const portMatch = profile?.screen?.port_match;
+
+  // If profile specifies a port match string, find that port
+  if (portMatch && midiAccess) {
+    const matched = [];
+    for (const [id, port] of midiAccess.outputs) {
+      if (port.name.includes(portMatch)) {
+        matched.push({ port, name: port.name });
+      }
+    }
+    if (matched.length > 0) return matched;
+  }
+
+  // Fallback to LCXL ports or active output
+  return getAllLCXLPorts();
 }
 
 function toggleScreenLoop() {
@@ -1928,11 +1965,12 @@ function toggleScreenLoop() {
 }
 
 function sendScreenFast() {
-  if (!activeOutput) return;
   const top = document.getElementById('screen-line1').value || '';
   const mid = document.getElementById('screen-line2').value || '';
   const bot = document.getElementById('screen-line3').value || '';
-  sendScreen3Row(activeOutput, top, mid, bot);
+  const ports = getScreenPorts();
+  if (!ports.length) return;
+  for (const p of ports) sendScreen3Row(p.port, top, mid, bot);
 }
 
 function sendScreenFormat(fmt) {
@@ -2226,13 +2264,37 @@ function sendScreenDirect(top, mid, bot) {
 }
 
 function sendScreen3Row(port, top, mid, bot) {
+  const profile = profiles[activeProfileId];
+  const screenMethod = profile?.screen?.method;
+
+  if (screenMethod === 'sysex_arturia') {
+    sendScreenArturia(port, top, mid, profile);
+    return;
+  }
+
+  // Novation LCXL3 default
   const target = 0x35;
-  // Config: arrangement 2 (3 rows), auto-on-change + auto-on-touch
   configureDisplay(port, target, 2, true, true);
   if (top) setDisplayText(port, target, 0x00, top);
   if (mid) setDisplayText(port, target, 0x01, mid);
   if (bot) setDisplayText(port, target, 0x02, bot);
   triggerDisplay(port, target);
+}
+
+// Arturia MiniLab 3 OLED screen — 2-line display
+// Format: F0 00 20 6B 7F 42 04 02 60 01 [line1] 00 02 [line2] F7
+function sendScreenArturia(port, line1, line2, profile) {
+  const header = [0xF0, 0x00, 0x20, 0x6B, 0x7F, 0x42];
+
+  ensureDeviceInit(profile);
+
+  // Build display message
+  const msg = [...header, 0x04, 0x02, 0x60, 0x01];
+  for (let i = 0; i < (line1 || '').length && i < 16; i++) msg.push(line1.charCodeAt(i));
+  msg.push(0x00, 0x02);
+  for (let i = 0; i < (line2 || '').length && i < 16; i++) msg.push(line2.charCodeAt(i));
+  msg.push(0xF7);
+  port.send(new Uint8Array(msg));
 }
 
 // ─── RGB SysEx LED (official format with 53h byte) ───
