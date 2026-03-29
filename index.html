@@ -293,6 +293,8 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
 .type { font-weight: 600; }
 .type.cc { color: var(--accent2); }
 .type.note { color: var(--yellow); }
+.type.pitch { color: #f472b6; }
+.type.aft { color: #a78bfa; }
 .type.sysex { color: var(--accent); }
 
 /* Hex preview */
@@ -400,6 +402,8 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
         <button class="btn-sm filter-btn active" data-filter="all" onclick="setFilter(this)">All</button>
         <button class="btn-sm filter-btn" data-filter="cc" onclick="setFilter(this)">CC</button>
         <button class="btn-sm filter-btn" data-filter="note" onclick="setFilter(this)">Note</button>
+        <button class="btn-sm filter-btn" data-filter="pitch" onclick="setFilter(this)">Pitch</button>
+        <button class="btn-sm filter-btn" data-filter="aft" onclick="setFilter(this)">Aft</button>
         <button class="btn-sm filter-btn" data-filter="sysex" onclick="setFilter(this)">SysEx</button>
         <div class="spacer"></div>
         <button class="btn-sm" onclick="clearMonitor()">Clear</button>
@@ -1656,12 +1660,15 @@ function onMIDIMessage(e) {
     learnSingleKey = null;
   }
 
-  // Map incoming to visual controls (CC and NoteOn)
+  // Map incoming to visual controls (CC, NoteOn, Pitch Bend)
   if (type === 'cc') {
     mapIncomingCC(ch, d1, d2);
   }
   if (type === 'note') {
     mapIncomingNote(ch, d1, d2);
+  }
+  if (type === 'pitch') {
+    mapIncomingPitch(ch, d1); // d1 = 14-bit value (0-16383)
   }
 
   // Learn All mode (CC or NoteOn)
@@ -1754,6 +1761,29 @@ function mapIncomingNote(ch, note, vel) {
   }
   if (!matched && vel > 0) {
     console.log(`[midiwave] Unknown Note: ch${ch} note${note} vel${vel} — not mapped`);
+  }
+}
+
+// Map incoming pitch bend to touch strip controls
+function mapIncomingPitch(ch, val14) {
+  // val14 = 0-16383, center 8192
+  const val127 = Math.round(val14 / 16383 * 127); // normalize to 0-127 for fader fill
+  for (const [key, ctrl] of Object.entries(controlMap)) {
+    if (ctrl.type === 'pitchbend' && ctrl.ch === ch) {
+      ctrl.lastValue = val127;
+      updateControlVisual(key);
+
+      const el = document.querySelector(`[data-key="${key}"]`);
+      if (el) {
+        el.classList.add('active');
+        setTimeout(() => el.classList.remove('active'), 150);
+      }
+
+      if (key === selectedKey) {
+        updateSelectedInfo(ctrl);
+      }
+      break;
+    }
   }
 }
 
